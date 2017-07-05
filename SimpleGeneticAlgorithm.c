@@ -3,7 +3,7 @@
 #include <stdio.h>
 //#include "../libraries/gnuplot_i/src/gnuplot_i.h"
 
-#define POPULATION_SIZE 20 /* Population Size */
+#define POPULATION_SIZE 100 /* Population Size */
 
 void        crossover       (uint16_t a, uint16_t b, uint16_t *child_a, uint16_t *child_b);
 void        showbits        (uint16_t x);
@@ -16,12 +16,14 @@ int main() {
     uint16_t iters;
     /* Set seed for rand() */
     srand(time(NULL));
-
+    /*  UI */
     printf("\nWelcome to the Simple Genetic Algorithm Software written by Joe Vázquez-Mellado\n");
     printf("\nPlease enter number of iterations: ");
     scanf("%hd", &iters);
 
+    /* Create starting population */
     newpopulation(&population);
+
     //mutation(&);
 }
 
