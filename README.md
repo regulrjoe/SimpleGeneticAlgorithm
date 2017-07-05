@@ -1,2 +1,2 @@
 # simple-genetic-algorithm
-Computational Intelligence fundamentals project.
+The simplest Genetic Algorithm written in C.
