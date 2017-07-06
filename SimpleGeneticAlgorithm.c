@@ -6,10 +6,22 @@
 #include <unistd.h>
 #include "../libraries/gnuplot_i/src/gnuplot_i.h"
 
-#define POPULATION_SIZE 10      /* SIZE OF THE POPULATION                   */
+/*  TODO: Random function
+    TODO: Ints to char array
+    TODO: Calculate bits needed
+    TODO: Implement Error Tolerance (EPSILON)
+    TODO: Show plot for standard deviation, avg fitness, max fitness for each GENERATIONS
+    TODO: Pass max fitness to next gen without applying operations to it
+    TODO: Evaluate multivariable equation
+    TODO: Ask for length and limits for each variable
+    TODO: Research De Jong Functions
+    TODO: HowTo search minimum instead of maximum
+    TODO: Read a lil bit David Goldberg book Genetic Algorithms in Search */
+
+#define POPULATION_SIZE 10      /* SIZE OF THE` POPULATION                   */
 #define MUTATION_RATE   0.01    /* PROBABILITY OF A MUTATION OCURRING       */
 #define CROSSOVER_RATE  1       /* PROBABILITY OF A CROSSOVER HAPPENING     */
-#define SLEEP_LGTH      2       /* GNUPLOT SLEEP TIMER THROUGH GENERATIONS  */
+#define SLEEP_LGTH      1       /* GNUPLOT SLEEP TIMER THROUGH GENERATIONS  */
 
 /* Chromosome structure */
 struct chromosome{
@@ -21,7 +33,6 @@ struct chromosome{
     double  expected_p;     /* Expected population                      */
 };
 
-
 void                crossover           (uint8_t x1, uint8_t x2, struct chromosome *child1, struct chromosome *child2);
 void                show_bits           (uint8_t x);
 int64_t             f                   (uint8_t x);
@@ -29,7 +40,7 @@ void                first_gen           (struct chromosome p[POPULATION_SIZE]);
 void                mutate              (uint8_t *x);
 int64_t             get_fitness         (struct chromosome p[POPULATION_SIZE]);
 void                get_probabilites    (struct chromosome p[POPULATION_SIZE], int64_t sof);
-struct chromosome   *select_parent             (struct chromosome p[POPULATION_SIZE], int64_t *sof);
+struct chromosome   *select_parent      (struct chromosome p[POPULATION_SIZE], int64_t *sof);
 void                procreate           (struct chromosome p[POPULATION_SIZE], struct chromosome pnext[POPULATION_SIZE], int64_t *sof);
 void                run                 (struct chromosome p[POPULATION_SIZE], uint16_t iters);
 
@@ -37,9 +48,7 @@ int main() {
     struct chromosome population[POPULATION_SIZE];
     uint16_t iterations;
 
-    /* Set seed for rand() */
-    srand(time(NULL));
-
+    RNG();
     /*  UI */
     printf("\nWelcome to this Simple Genetic Algorithm Software written by Joe Vázquez-Mellado\n");
     printf("\nPlease enter number of iterations: ");
@@ -75,6 +84,7 @@ void run(struct chromosome p[POPULATION_SIZE], uint16_t iters) {
         for (uint16_t j = 0; j < POPULATION_SIZE; j++) {
             double  px  = p[j].x,
                     ptf = p[j].true_fitness;
+
             gnuplot_plot_xy(h, &px, &ptf, 1, "");
             p[j].x          = new_gen[j].x;
             new_gen[j].x    = 0;
@@ -97,6 +107,30 @@ void run(struct chromosome p[POPULATION_SIZE], uint16_t iters) {
         printf("p[%d]: x: %d\ttrue_fitness: %lld\tfitness: %llu\t - %p\n", i, p[i].x, p[i].true_fitness, p[i].fitness, &p[i]);
     }
     gnuplot_close(h);
+}
+
+/*  Cryptographically Secure Pseudornadom Number Generator
+    Read bytes from /dev/random device file. Each by from this files is
+    a cryptographically random value from 0-255. This function concatenates
+    thos bytes to generate a random number of an arbitrary size. */
+uint32_t rng() {
+    /* Establish connection with /dev/random */
+    FILE *fp = fopen("/dev/random", "r");
+
+    /* Abort if connection is lost */
+    if (!fp) {
+        perror("RNG");
+        exit(-1);
+    }
+
+    uint32_t value = 0;
+
+    for (uint8_t i = 0; i < sizeof(value); i++) {
+        value <<= 8;
+        value |= fgetc(fp);
+    }
+    fclose(fp);
+    printf("\nRNG:\t%d\n", value);
 }
 
 
