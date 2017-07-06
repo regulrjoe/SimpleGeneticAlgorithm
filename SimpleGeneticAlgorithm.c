@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 #include "../libraries/gnuplot_i/src/gnuplot_i.h"
 
 #define POPULATION_SIZE 10      /* SIZE OF THE POPULATION                   */
@@ -28,7 +29,7 @@ void                first_gen           (struct chromosome p[POPULATION_SIZE]);
 void                mutate              (uint8_t *x);
 int64_t             get_fitness         (struct chromosome p[POPULATION_SIZE]);
 void                get_probabilites    (struct chromosome p[POPULATION_SIZE], int64_t sof);
-struct chromosome   *select             (struct chromosome p[POPULATION_SIZE], int64_t *sof);
+struct chromosome   *select_parent             (struct chromosome p[POPULATION_SIZE], int64_t *sof);
 void                procreate           (struct chromosome p[POPULATION_SIZE], struct chromosome pnext[POPULATION_SIZE], int64_t *sof);
 void                run                 (struct chromosome p[POPULATION_SIZE], uint16_t iters);
 
@@ -104,8 +105,8 @@ void procreate(struct chromosome p[POPULATION_SIZE], struct chromosome pnext[POP
     struct chromosome *parent1, *parent2, child1, child2;
     printf("inside procreate p: %p\t new_gen: %p\n", &p[0], &pnext[0]);
     for (uint16_t i = 0; i < POPULATION_SIZE; i += 2) {
-        parent1 = select(p, sof);
-        parent2 = select(p, sof);
+        parent1 = select_parent(p, sof);
+        parent2 = select_parent(p, sof);
         //printf("\nparent1: x: %d\ttrue fitness: %lld\tfitness: %llu\tprobability: %f\tcdf: %f\t - %p\n", parent1->x, parent1->true_fitness,parent1->fitness, parent1->probability, parent1->cdf, &parent1);
         //printf("parent2: x: %d\ttrue fitness: %lld\tfitness: %llu\tprobability: %f\tcdf: %f\t - %p\n", parent2->x, parent2->true_fitness, parent2->fitness, parent2->probability, parent2->cdf, &parent2);
         //show_bits(parent1->x);
@@ -138,7 +139,7 @@ void procreate(struct chromosome p[POPULATION_SIZE], struct chromosome pnext[POP
 
 
 /*  Select chromosomes for next generation through Roulette Wheel selection */
-struct chromosome *select(struct chromosome p[POPULATION_SIZE], int64_t *sof) {
+struct chromosome *select_parent(struct chromosome p[POPULATION_SIZE], int64_t *sof) {
     double roulette_shot;
     uint16_t i      = 0;
     roulette_shot   = (double)(rand() % *sof) / (double)*sof;
