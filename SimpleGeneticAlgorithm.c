@@ -3,11 +3,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-//#include "../libraries/gnuplot_i/src/gnuplot_i.h"
+#include "../libraries/gnuplot_i/src/gnuplot_i.h"
 
-#define POPULATION_SIZE 10      /* SIZE OF THE POPULATION               */
-#define MUTATION_RATE   0.01    /* PROBABILITY OF A MUTATION OCURRING   */
-#define CROSSOVER_RATE  1       /* PROBABILITY OF A CROSSOVER HAPPENING */
+#define POPULATION_SIZE 10      /* SIZE OF THE POPULATION                   */
+#define MUTATION_RATE   0.01    /* PROBABILITY OF A MUTATION OCURRING       */
+#define CROSSOVER_RATE  1       /* PROBABILITY OF A CROSSOVER HAPPENING     */
+#define SLEEP_LGTH      2       /* GNUPLOT SLEEP TIMER THROUGH GENERATIONS  */
 
 /* Chromosome structure */
 struct chromosome{
@@ -44,9 +45,8 @@ int main() {
     scanf("%hd", &iterations);
 
     /* Create starting population */
-
     first_gen(population);
-    printf("before run p: %p\n", &population);
+    /* Run algorithm */
     run(population, iterations);
     return 0;
 }
@@ -55,23 +55,47 @@ int main() {
 void run(struct chromosome p[POPULATION_SIZE], uint16_t iters) {
     int64_t sum_of_fitness;
     struct chromosome new_gen[POPULATION_SIZE];
+    gnuplot_ctrl *h = gnuplot_init();
 
+    /* Run generations */
     for (uint16_t i = 0; i < iters; i++) {
         printf("\n\n----------------- GENERATION %d -----------------\n", i);
+        gnuplot_setstyle(h, "lines");
+        gnuplot_cmd(h, "set xrange [0:255]");
+        gnuplot_cmd(h, "set yrange [-50000:2000]");
+        gnuplot_plot_equation(h, "60*x - x**2", "f(x) = 60x - x^2");
+        gnuplot_setstyle(h, "points");
+        /* Get generation fitness */
         sum_of_fitness = get_fitness(p);
+        /* Get generation probabilities */
         get_probabilites(p, sum_of_fitness);
-        //printf("before procreate p: %p\t new_gen: %p\n", &p[0], &new_gen[0]);
+        /* Get new generation */
         procreate(p, new_gen, &sum_of_fitness);
         for (uint16_t j = 0; j < POPULATION_SIZE; j++) {
-            p[j].x = new_gen[j].x;
-            new_gen[j].x = 0;
+            double  px  = p[j].x,
+                    ptf = p[j].true_fitness;
+            gnuplot_plot_xy(h, &px, &ptf, 1, "");
+            p[j].x          = new_gen[j].x;
+            new_gen[j].x    = 0;
         }
+        sleep(SLEEP_LGTH);
+        gnuplot_resetplot(h);
     }
     printf("\n\n----------------- LAST GENERATION -----------------\n");
-
+    gnuplot_setstyle(h, "lines");
+    gnuplot_cmd(h, "set xrange [0:255]");
+    gnuplot_cmd(h, "set yrange [-50000:2000]");
+    gnuplot_plot_equation(h, "60*x - x**2", "f(x) = 60x - x^2");
+    gnuplot_setstyle(h, "points");
+    /* Get last generation fitness at this point, probabilities are useless */
     get_fitness(p);
-    for (uint16_t i = 0; i < POPULATION_SIZE; i++)
+    for (uint16_t i = 0; i < POPULATION_SIZE; i++){
+        double  px  = p[i].x,
+                ptf = p[i].true_fitness;
+        gnuplot_plot_xy(h, &px, &ptf, 1, "");
         printf("p[%d]: x: %d\ttrue_fitness: %lld\tfitness: %llu\t - %p\n", i, p[i].x, p[i].true_fitness, p[i].fitness, &p[i]);
+    }
+    gnuplot_close(h);
 }
 
 
@@ -82,29 +106,33 @@ void procreate(struct chromosome p[POPULATION_SIZE], struct chromosome pnext[POP
     for (uint16_t i = 0; i < POPULATION_SIZE; i += 2) {
         parent1 = select(p, sof);
         parent2 = select(p, sof);
-        printf("\nparent1: x: %d\ttrue fitness: %lld\tfitness: %llu\tprobability: %f\tcdf: %f\t - %p\n", parent1->x, parent1->true_fitness,parent1->fitness, parent1->probability, parent1->cdf, &parent1);
-        printf("parent2: x: %d\ttrue fitness: %lld\tfitness: %llu\tprobability: %f\tcdf: %f\t - %p\n", parent2->x, parent2->true_fitness, parent2->fitness, parent2->probability, parent2->cdf, &parent2);
-        show_bits(parent1->x);
-        show_bits(parent2->x);
+        //printf("\nparent1: x: %d\ttrue fitness: %lld\tfitness: %llu\tprobability: %f\tcdf: %f\t - %p\n", parent1->x, parent1->true_fitness,parent1->fitness, parent1->probability, parent1->cdf, &parent1);
+        //printf("parent2: x: %d\ttrue fitness: %lld\tfitness: %llu\tprobability: %f\tcdf: %f\t - %p\n", parent2->x, parent2->true_fitness, parent2->fitness, parent2->probability, parent2->cdf, &parent2);
+        //show_bits(parent1->x);
+        //show_bits(parent2->x);
 
+        /* Do crossover if CROSSOVER_RATE is met */
         if ( (double)(rand() % 1000) / 1000 <= CROSSOVER_RATE )
             crossover(parent1->x, parent2->x, &child1, &child2);
         //printf("crossover after:\n");
         //show_bits(child1.x);
         //show_bits(child2.x);
-
         //printf("mutation after:\n");
+
+        /* Do mutation if MUTATION_RATE is met */
         if ( (double)(rand() % 1000) / 1000 <= MUTATION_RATE )
             mutate(&child1.x);
         if ( (double)(rand() % 1000) / 1000 <= MUTATION_RATE )
             mutate(&child2.x);
-        printf("\nchilds bits:\n");
+
+        /* Assign children to new generation */
         pnext[i]    = child1;
         pnext[i+1]  = child2;
-        printf("child1: x: %d - %p\n", child1.x, &child1);
-        printf("child2: x: %d - %p\n", child2.x, &child2);
-        show_bits(child1.x);
-        show_bits(child2.x);
+        //printf("\nchilds bits:\n");
+        //printf("child1: x: %d - %p\n", child1.x, &child1);
+        //printf("child2: x: %d - %p\n", child2.x, &child2);
+        //show_bits(child1.x);
+        //show_bits(child2.x);
     }
 }
 
@@ -114,11 +142,10 @@ struct chromosome *select(struct chromosome p[POPULATION_SIZE], int64_t *sof) {
     double roulette_shot;
     uint16_t i      = 0;
     roulette_shot   = (double)(rand() % *sof) / (double)*sof;
-    printf("\nroulette_shot: %f\n", roulette_shot);
-    while (roulette_shot > p[i].cdf) {
-       //printf("p[%d]: x: %d\ttrue_fitness: %lld\tfitness: %llu\tprobability: %f\tcdf: %f\t - %p\n", i, p[i].x, p[i].true_fitness, p[i].fitness, p[i].probability, p[i].cdf, &p[i]);
+    //printf("\nroulette_shot: %f\n", roulette_shot);
+    while (roulette_shot > p[i].cdf)
         i++;
-    }
+
     //printf("p[%d]: x: %d\ttrue_fitness: %lld\tfitness: %llu\tprobability: %f\tcdf: %f\t - %p\n", i, p[i].x, p[i].true_fitness, p[i].fitness, p[i].probability, p[i].cdf, &p[i]);
     return &p[i];
 }
@@ -143,8 +170,8 @@ int64_t get_fitness(struct chromosome p[POPULATION_SIZE]) {
 
     /* Get fitness of each chromosome and find minimum value for normalization */
     for (uint16_t i = 0; i < POPULATION_SIZE; i++) {
-        p[i].fitness = f(p[i].x);
-        p[i].true_fitness = p[i].fitness;
+        p[i].fitness        = f(p[i].x);
+        p[i].true_fitness   = p[i].fitness;
         if (p[i].fitness < min)
             min = p[i].fitness;
         //printf("p[%d] x: %d\tfitness: %lld\tmin: %lld\n", i, p[i].x, p[i].fitness, min);
