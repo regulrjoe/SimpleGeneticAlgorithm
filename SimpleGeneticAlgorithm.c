@@ -23,16 +23,26 @@
 #define CROSSOVER_RATE  1       /* PROBABILITY OF A CROSSOVER HAPPENING     */
 #define SLEEP_LGTH      1       /* GNUPLOT SLEEP TIMER THROUGH GENERATIONS  */
 
+/* Gene structure */
+struct variables{
+    uint8_t     *ptr_in_genotype;
+    int32_t     lower_limit;
+    int32_t     upper_limit;
+    double      precision;
+    uint8_t     bits_length;
+};
+
 /* Chromosome structure */
 struct chromosome{
-    uint8_t *genotype;      /* Chromosome genes array                   */
-    uint8_t phenotype;      /* Decimal value of Genotype                */
-    uint8_t x;
-    int64_t fitness;        /* Result of f(phenotype)                   */
-    int64_t true_fitness;   /* True fitness value (No Normalization)    */
-    double  probability;    /* Probability of selection                 */
-    double  cdf;            /* Cumulative probability distribution      */
-    double  expected_p;     /* Expected population                      */
+    uint8_t             *genotype;      /* Chromosome genes array                   */
+    uint8_t             phenotype;      /* Decimal value of Genotype                */
+    struct gene_info    *variables;     /* Array of genotype variables information  */
+    uint8_t             x;
+    int64_t             fitness;        /* Result of f(phenotype)                   */
+    int64_t             true_fitness;   /* True fitness value (No Normalization)    */
+    double              probability;    /* Probability of selection                 */
+    double              cdf;            /* Cumulative probability distribution      */
+    double              expected_p;     /* Expected population                      */
 };
 
 /* Functions */
@@ -91,12 +101,13 @@ int main() {
     return 0;
 }
 
+
 /*  Get amount of bits needed to cover search space with given precision
     ceil( log10(xu-xl) / log10(precision) )*/
 uint8_t get_bits_len(int32_t xl, int32_t xu, double precision) {
     return (uint8_t)ceil( log2( ((double)(xu-xl)/precision) - 1.0) );
-    //return (uint8_t)ceil( (double)log10(abs(xu-xl)) / log10(precision) );
 }
+
 
 /* Create starting population */
 void first_gen(struct chromosome p[POPULATION_SIZE]) {
