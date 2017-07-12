@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include "../libraries/gnuplot_i/src/gnuplot_i.h"
 
-/*  TODO: Ints to char array
+/*  TODO: Ints to uint8_t array
     TODO: Calculate bits needed
     TODO: Implement Error Tolerance (EPSILON)
     TODO: Show plot for standard deviation, avg fitness, max fitness for each GENERATIONS
@@ -15,17 +15,20 @@
     TODO: Ask for length and limits for each variable
     TODO: Research De Jong Functions
     TODO: HowTo search minimum instead of maximum
-    TODO: Read a lil bit David Goldberg book Genetic Algorithms in Search */
+    TODO: Read a lil bit David Goldberg book Genetic Algorithms in Search
+    TODO: USE SELECTION PRESSURE */
 
-#define POPULATION_SIZE 10      /* SIZE OF THE` POPULATION                   */
+#define POPULATION_SIZE 10      /* SIZE OF THE POPULATION                   */
 #define MUTATION_RATE   0.01    /* PROBABILITY OF A MUTATION OCURRING       */
 #define CROSSOVER_RATE  1       /* PROBABILITY OF A CROSSOVER HAPPENING     */
 #define SLEEP_LGTH      1       /* GNUPLOT SLEEP TIMER THROUGH GENERATIONS  */
 
 /* Chromosome structure */
 struct chromosome{
-    uint8_t x;              /* Phenotype / Genotype                     */
-    int64_t fitness;        /* Result of f(x)                           */
+    uint8_t *genotype;      /* Chromosome genes array                   */
+    uint8_t phenotype;      /* Decimal value of Genotype                */
+    uint8_t x;
+    int64_t fitness;        /* Result of f(phenotype)                   */
     int64_t true_fitness;   /* True fitness value (No Normalization)    */
     double  probability;    /* Probability of selection                 */
     double  cdf;            /* Cumulative probability distribution      */
@@ -33,10 +36,11 @@ struct chromosome{
 };
 
 /* Functions */
+uint8_t             get_bits_len        (int32_t xl, int32_t xu, double precision);
+void                first_gen           (struct chromosome p[POPULATION_SIZE]);
 void                crossover           (uint8_t x1, uint8_t x2, struct chromosome *child1, struct chromosome *child2);
 void                show_bits           (uint8_t x);
 int64_t             f                   (uint8_t x);
-void                first_gen           (struct chromosome p[POPULATION_SIZE]);
 void                mutate              (uint8_t *x);
 int64_t             get_fitness         (struct chromosome p[POPULATION_SIZE]);
 void                get_probabilites    (struct chromosome p[POPULATION_SIZE], int64_t sof);
@@ -50,7 +54,6 @@ uint16_t            d_unif              (double x, double a, double b);
 
 
 int main() {
-
     struct chromosome population[POPULATION_SIZE];
     uint16_t iterations;
     /* |||||||||||||||||||||||||||||||||||||||||||||||||| */
@@ -62,6 +65,9 @@ int main() {
     //uint8_t mask1 = pow(2, cutpoint) - 1;
     //printf("mask1: ");
     //show_bits(mask1);
+
+    printf("get_bits_len: %d\n", get_bits_len(10,100,0.5));
+    //theme testing comment.
 
     //printf("sizeof(uint8_t)*8: %lu\n", sizeof(uint8_t)*8);
     //uint8_t maxvalue = pow(2, sizeof(uint8_t)*8)-1;
@@ -84,6 +90,27 @@ int main() {
     run(population, iterations);
     return 0;
 }
+
+/*  Get amount of bits needed to cover search space with given precision
+    ceil( log10(xu-xl) / log10(precision) )*/
+uint8_t get_bits_len(int32_t xl, int32_t xu, double precision) {
+    return (uint8_t)ceil( log2( ((double)(xu-xl)/precision) - 1.0) );
+    //return (uint8_t)ceil( (double)log10(abs(xu-xl)) / log10(precision) );
+}
+
+/* Create starting population */
+void first_gen(struct chromosome p[POPULATION_SIZE]) {
+    /* Set maxvalue of each chromosome based off the chromosome's size */
+    uint8_t maxvalue = pow(2, sizeof(uint8_t)*8 - 1);
+    //printf("maxvalue: %d\n", maxvalue);
+    for (int i = 0; i < POPULATION_SIZE; i++){
+        uint8_t rnd = d_unif(rng(), 0, maxvalue+1);
+    //    printf("rnd: %d", rnd);
+        p[i].x = rnd;
+        show_bits(p[i].x);
+    }
+}
+
 
 /*  Run the genetic algorithm through a given population a given amount of times */
 void run(struct chromosome p[POPULATION_SIZE], uint16_t iters) {
@@ -162,18 +189,21 @@ double rng() {
     return point_value;
 }
 
+
 /* Discrete Uniform Value.
     With a point value of x when 0 ≤ x ≤ 1, get an uniformly
     equivalent int value y as a ≤ y < b*/
 uint16_t d_unif(double x, double a, double b) {
     return (x == 1) ? (uint16_t)b-1 : (uint16_t)floor(x*(b-a) + a );
 }
+
 /*  Continuous Uniform Value.
     With a point value of x when 0 ≤ x ≤ 1, get an uniformly
     equivalent point value y as a ≤ y < b */
 double c_unif(double x, double a, double b) {
     return (x == 1) ? b-0.000001 : x*(b-a) + a;
 }
+
 /*  Continuous Uniform Distribution */
 double cud(double x, double a, double b) {
     return (x-a) / (b-a) * (b-a);
@@ -286,20 +316,6 @@ void mutate(uint8_t *x) {
     uint8_t bit_to_mutate   = d_unif(rng(), 0, sizeof(uint8_t)*8);
     uint8_t  mask           = 1 << bit_to_mutate;
     *x                      ^= mask;
-}
-
-
-/* Create starting population */
-void first_gen(struct chromosome p[POPULATION_SIZE]) {
-    /* Set maxvalue of each chromosome based off the chromosome's size */
-    uint8_t maxvalue = pow(2, sizeof(uint8_t)*8 - 1);
-    //printf("maxvalue: %d\n", maxvalue);
-    for (int i = 0; i < POPULATION_SIZE; i++){
-        uint8_t rnd = d_unif(rng(), 0, maxvalue+1);
-    //    printf("rnd: %d", rnd);
-        p[i].x = rnd;
-        show_bits(p[i].x);
-    }
 }
 
 
