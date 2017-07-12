@@ -23,9 +23,9 @@
 #define CROSSOVER_RATE  1       /* PROBABILITY OF A CROSSOVER HAPPENING     */
 #define SLEEP_LGTH      1       /* GNUPLOT SLEEP TIMER THROUGH GENERATIONS  */
 
-/* Gene structure */
-struct variables{
-    uint8_t     *ptr_in_genotype;
+/* Variable structure */
+struct variable{
+    uint8_t     position_in_genotype;
     int32_t     lower_limit;
     int32_t     upper_limit;
     double      precision;
@@ -36,7 +36,6 @@ struct variables{
 struct chromosome{
     uint8_t             *genotype;      /* Chromosome genes array                   */
     uint8_t             phenotype;      /* Decimal value of Genotype                */
-    struct gene_info    *variables;     /* Array of genotype variables information  */
     uint8_t             x;
     int64_t             fitness;        /* Result of f(phenotype)                   */
     int64_t             true_fitness;   /* True fitness value (No Normalization)    */
@@ -47,6 +46,7 @@ struct chromosome{
 
 /* Functions */
 uint8_t             get_bits_len        (int32_t xl, int32_t xu, double precision);
+
 void                first_gen           (struct chromosome p[POPULATION_SIZE]);
 void                crossover           (uint8_t x1, uint8_t x2, struct chromosome *child1, struct chromosome *child2);
 void                show_bits           (uint8_t x);
@@ -76,7 +76,7 @@ int main() {
     //printf("mask1: ");
     //show_bits(mask1);
 
-    printf("get_bits_len: %d\n", get_bits_len(10,100,0.5));
+    //printf("get_bits_len: %d\n", get_bits_len(10,100,0.5));
     //theme testing comment.
 
     //printf("sizeof(uint8_t)*8: %lu\n", sizeof(uint8_t)*8);
