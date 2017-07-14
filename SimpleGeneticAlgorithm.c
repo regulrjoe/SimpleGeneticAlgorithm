@@ -6,57 +6,60 @@
 #include <unistd.h>
 #include "../libraries/gnuplot_i/src/gnuplot_i.h"
 
-/*  TODO: Ints to uint8_t array
-    TODO: Calculate bits needed
+/*  TODO: Write vars value assignment function
     TODO: Implement Error Tolerance (EPSILON)
     TODO: Show plot for standard deviation, avg fitness, max fitness for each GENERATIONS
     TODO: Pass max fitness to next gen without applying operations to it
     TODO: Evaluate multivariable equation
-    TODO: Ask for length and limits for each variable
     TODO: Research De Jong Functions
     TODO: HowTo search minimum instead of maximum
     TODO: Read a lil bit David Goldberg book Genetic Algorithms in Search
     TODO: USE SELECTION PRESSURE */
 
 #define POPULATION_SIZE 10      /* SIZE OF THE POPULATION                   */
-#define MUTATION_RATE   0.01    /* PROBABILITY OF A MUTATION OCURRING       */
+#define MUTATION_RATE   0.05    /* PROBABILITY OF A MUTATION OCURRING       */
 #define CROSSOVER_RATE  1       /* PROBABILITY OF A CROSSOVER HAPPENING     */
 #define SLEEP_LGTH      1       /* GNUPLOT SLEEP TIMER THROUGH GENERATIONS  */
 
 /* Variable structure */
 struct variable{
-    uint8_t     position_in_genotype;
-    int32_t     lower_limit;
-    int32_t     upper_limit;
-    double      precision;
-    uint8_t     bits_length;
+    uint8_t     position_in_genotype;   /* Position of given variable in genes array    */
+    int32_t     lower_lim;              /* Lower limit of variable                      */
+    int32_t     upper_lim;              /* Upper limit of variable                      */
+    double      precision;              /* Precision of variable value                  */
+    uint8_t     bits_len;               /* Length of bits used for variable             */
+    double      value;                  /* Current value of the variable                */
 };
 
 /* Chromosome structure */
 struct chromosome{
-    uint8_t             *genotype;      /* Chromosome genes array                   */
-    uint8_t             phenotype;      /* Decimal value of Genotype                */
-    uint8_t             x;
-    int64_t             fitness;        /* Result of f(phenotype)                   */
-    int64_t             true_fitness;   /* True fitness value (No Normalization)    */
-    double              probability;    /* Probability of selection                 */
-    double              cdf;            /* Cumulative probability distribution      */
-    double              expected_p;     /* Expected population                      */
+    uint8_t         *genotype;      /* Chromosome genes array                   */
+    int64_t         phenotype;      /* Decimal value of Genotype                */
+    int64_t         fitness;        /* Result of f(phenotype)                   */
+    int64_t         true_fitness;   /* True fitness value (No Normalization)    */
+    double          probability;    /* Probability of selection                 */
+    double          cdf;            /* Cumulative probability distribution      */
+    double          expected_p;     /* Expected population                      */
+    struct variable *vars;           /* Array of variables in genomea            */
 };
 
 /* Functions */
 uint8_t             get_bits_len        (int32_t xl, int32_t xu, double precision);
-
-void                first_gen           (struct chromosome p[POPULATION_SIZE]);
-void                crossover           (uint8_t x1, uint8_t x2, struct chromosome *child1, struct chromosome *child2);
-void                show_bits           (uint8_t x);
-int64_t             f                   (uint8_t x);
-void                mutate              (uint8_t *x);
+uint8_t             define_vars         (struct variable *vars, uint8_t n);
+void                assign_vars         (struct chromosome *chrome, struct variable *vars, uint8_t n);
+void                first_gen           (struct chromosome p[POPULATION_SIZE], struct variable *vars, uint8_t chrome_len, uint8_t n_vars);
+double              eval_bin_array      (uint8_t *bin_array, uint8_t len);
 int64_t             get_fitness         (struct chromosome p[POPULATION_SIZE]);
 void                get_probabilites    (struct chromosome p[POPULATION_SIZE], int64_t sof);
-struct chromosome   *select_parent      (struct chromosome p[POPULATION_SIZE], int64_t *sof);
-void                procreate           (struct chromosome p[POPULATION_SIZE], struct chromosome pnext[POPULATION_SIZE], int64_t *sof);
-void                run                 (struct chromosome p[POPULATION_SIZE], uint16_t iters);
+void                crossover           (uint8_t *geno1, uint8_t *geno2, struct chromosome *child1, struct chromosome *child2, uint8_t chrome_len);
+struct chromosome   *select_parent      (struct chromosome p[POPULATION_SIZE]);
+void                mutate              (uint8_t *geno, uint8_t chrome_len);
+
+void                run                 (struct chromosome p[POPULATION_SIZE], uint16_t iters, uint8_t chrome_len, struct variable *vars, uint8_t n_vars);
+void                procreate           (struct chromosome p[POPULATION_SIZE], struct chromosome pnext[POPULATION_SIZE], uint8_t chrome_len, uint8_t n_vars);
+
+void                show_bits           (uint8_t x);
+int64_t             f                   (int64_t x);
 double              rng                 ();
 double              cud                 (double x, double a, double b);
 double              c_unif              (double x, double a, double b);
@@ -64,43 +67,58 @@ uint16_t            d_unif              (double x, double a, double b);
 
 
 int main() {
-    struct chromosome population[POPULATION_SIZE];
-    uint16_t iterations;
-    /* |||||||||||||||||||||||||||||||||||||||||||||||||| */
-    /* |||||||||||||||||| TESTING AREA |||||||||||||||||| */
-    /* |||||||||||||||||||||||||||||||||||||||||||||||||| */
-    //printf("rng: %f\n", rng());
-    //uint8_t cutpoint = d_unif(rng(), 1, sizeof(uint8_t)*8);
-    //printf("cutpoint: %d\n", cutpoint);
-    //uint8_t mask1 = pow(2, cutpoint) - 1;
-    //printf("mask1: ");
-    //show_bits(mask1);
-
-    //printf("get_bits_len: %d\n", get_bits_len(10,100,0.5));
-    //theme testing comment.
-
-    //printf("sizeof(uint8_t)*8: %lu\n", sizeof(uint8_t)*8);
-    //uint8_t maxvalue = pow(2, sizeof(uint8_t)*8)-1;
-    //printf("maxvalue: %d\n", maxvalue);
-
-    //printf("discrete rng (1-5)[1,6]:\t%d\n", d_unif(rng(), 1, 6));
-    //printf("continuous rng (1-5)[1,6]:\t%f\n", c_unif(rng(), 1, 6));
-    /* |||||||||||||||||||||||||||||||||||||||||||||||||| */
-    /* |||||||||||||||||||||||||||||||||||||||||||||||||| */
-    /* |||||||||||||||||||||||||||||||||||||||||||||||||| */
+    struct chromosome   population[POPULATION_SIZE];
+    uint16_t            iterations;
+    uint8_t             num_vars;
 
     /*  UI */
     printf("\nWelcome to this Simple Genetic Algorithm Software written by Joe Vázquez-Mellado\n");
+    printf("\nHow many variables do you wish to work with?: ");
+    scanf("%d", &num_vars);
+
+    struct variable *genome_vars = (struct variable*) calloc(num_vars, sizeof(struct variable));
+
+    uint8_t chromosome_len = define_vars(genome_vars, num_vars);
+
     printf("\nPlease enter number of iterations: ");
     scanf("%hd", &iterations);
 
     /* Create starting population */
-    first_gen(population);
+    first_gen(population, genome_vars, chromosome_len, num_vars);
     /* Run algorithm */
-    run(population, iterations);
+    run(population, iterations, chromosome_len, genome_vars, num_vars);
     return 0;
 }
 
+/*  Define the variables metainformation to use in chromosome */
+uint8_t define_vars(struct variable *vars, uint8_t n) {
+    uint8_t len = 0;
+    for (uint8_t i = 0; i < n; i++) {
+        printf("\nVAR %d\nlower limit: ", i);
+        scanf("%u", &vars[i].lower_lim);
+        printf("upper limit: ");
+        scanf("%u", &vars[i].upper_lim);
+        printf("precision: ");
+        scanf("%lf", &vars[i].precision);
+
+        vars[i].bits_len = get_bits_len(vars[i].lower_lim, vars[i].upper_lim, vars[i].precision);
+        vars[i].position_in_genotype = len;
+        len += vars[i].bits_len;
+    }
+    return len;
+}
+
+/* Assign given variables to given chromosomes  */
+void assign_vars(struct chromosome *chrome, struct variable *vars, uint8_t n) {
+    chrome->vars = (struct variable*) calloc(n, sizeof(struct variable));
+    for (uint8_t i = 0; i < n; i++) {
+        chrome->vars[i].position_in_genotype    = vars[i].position_in_genotype;
+        chrome->vars[i].lower_lim               = vars[i].lower_lim;
+        chrome->vars[i].upper_lim               = vars[i].upper_lim;
+        chrome->vars[i].precision               = vars[i].precision;
+        chrome->vars[i].bits_len                = vars[i].bits_len;
+    }
+}
 
 /*  Get amount of bits needed to cover search space with given precision
     ceil( log10(xu-xl) / log10(precision) )*/
@@ -108,26 +126,48 @@ uint8_t get_bits_len(int32_t xl, int32_t xu, double precision) {
     return (uint8_t)ceil( log2( ((double)(xu-xl)/precision) - 1.0) );
 }
 
-
 /* Create starting population */
-void first_gen(struct chromosome p[POPULATION_SIZE]) {
-    /* Set maxvalue of each chromosome based off the chromosome's size */
-    uint8_t maxvalue = pow(2, sizeof(uint8_t)*8 - 1);
-    //printf("maxvalue: %d\n", maxvalue);
+void first_gen(struct chromosome p[POPULATION_SIZE], struct variable *vars, uint8_t chrome_len, uint8_t n_vars) {
     for (int i = 0; i < POPULATION_SIZE; i++){
-        uint8_t rnd = d_unif(rng(), 0, maxvalue+1);
-    //    printf("rnd: %d", rnd);
-        p[i].x = rnd;
-        show_bits(p[i].x);
+        p[i].genotype = (uint8_t*) calloc(chrome_len, sizeof(uint8_t));
+        p[i].vars = (struct variable*) calloc(n_vars, sizeof(struct variable));
+
+        for (uint8_t j = 0; j < chrome_len; j++)
+            p[i].genotype[j] = d_unif(rng(), 0, 2);
+
+        p[i].phenotype = (int64_t)eval_bin_array(p[i].genotype, chrome_len);
+
+        for (uint8_t k = 0; k < n_vars; k++) {
+            p[i].vars[k].position_in_genotype   = vars[k].position_in_genotype;
+            p[i].vars[k].lower_lim              = vars[k].lower_lim;
+            p[i].vars[k].upper_lim              = vars[k].upper_lim;
+            p[i].vars[k].precision              = vars[k].precision;
+            p[i].vars[k].bits_len               = vars[k].bits_len;
+            p[i].vars[k].value                  = eval_bin_array(&p[i].genotype[vars[k].position_in_genotype], vars[k].bits_len);
+        }
     }
+}
+
+/* Evaluate binary int array */
+double eval_bin_array(uint8_t *bin_array, uint8_t len){
+    double value = 0;
+    for (int8_t i = len-1; i >= 0; i--)
+        value += bin_array[i] * pow(2, len-i-1);
+
+    return value;
 }
 
 
 /*  Run the genetic algorithm through a given population a given amount of times */
-void run(struct chromosome p[POPULATION_SIZE], uint16_t iters) {
+void run(struct chromosome p[POPULATION_SIZE], uint16_t iters, uint8_t chrome_len, struct variable *vars, uint8_t n_vars) {
     int64_t sum_of_fitness;
     struct chromosome new_gen[POPULATION_SIZE];
     gnuplot_ctrl *h = gnuplot_init();
+
+    for (uint16_t i = 0; i < POPULATION_SIZE; i++) {
+        new_gen[i].genotype = (uint8_t*) calloc(chrome_len, sizeof(uint8_t));
+        assign_vars(&new_gen[i], vars, n_vars);
+    }
 
     /* Run generations */
     for (uint16_t i = 0; i < iters; i++) {
@@ -137,19 +177,26 @@ void run(struct chromosome p[POPULATION_SIZE], uint16_t iters) {
         gnuplot_cmd(h, "set yrange [-50000:2000]");
         gnuplot_plot_equation(h, "60*x - x**2", "f(x) = 60x - x^2");
         gnuplot_setstyle(h, "points");
+
         /* Get generation fitness */
         sum_of_fitness = get_fitness(p);
         /* Get generation probabilities */
         get_probabilites(p, sum_of_fitness);
-        /* Get new generation */
-        procreate(p, new_gen, &sum_of_fitness);
-        for (uint16_t j = 0; j < POPULATION_SIZE; j++) {
-            double  px  = p[j].x,
-                    ptf = p[j].true_fitness;
 
+        /* Get new generation */
+        procreate(p, new_gen, chrome_len, n_vars);
+
+        /* Assign new generation's properties to current population */
+        for (uint16_t j = 0; j < POPULATION_SIZE; j++) {
+            double  px  = p[j].phenotype,
+                    ptf = p[j].true_fitness;
             gnuplot_plot_xy(h, &px, &ptf, 1, "");
-            p[j].x          = new_gen[j].x;
-            new_gen[j].x    = 0;
+
+            /* assign new_gen genotype to current_gen */
+            for (uint8_t k = 0; k < chrome_len; k++)
+                p[j].genotype[k] = new_gen[j].genotype[k];
+            /* assign new_gen phenotype to current_gen */
+            p[j].phenotype = (int64_t)eval_bin_array(p[j].genotype, chrome_len);
         }
         sleep(SLEEP_LGTH);
         gnuplot_resetplot(h);
@@ -160,16 +207,110 @@ void run(struct chromosome p[POPULATION_SIZE], uint16_t iters) {
     gnuplot_cmd(h, "set yrange [-50000:2000]");
     gnuplot_plot_equation(h, "60*x - x**2", "f(x) = 60x - x^2");
     gnuplot_setstyle(h, "points");
-    /* Get last generation fitness at this point, probabilities are useless */
+
+    /* Get last generation fitness, at this point probabilities are useless */
     get_fitness(p);
     for (uint16_t i = 0; i < POPULATION_SIZE; i++){
-        double  px  = p[i].x,
+        double  px  = p[i].phenotype,
                 ptf = p[i].true_fitness;
         gnuplot_plot_xy(h, &px, &ptf, 1, "");
-        printf("p[%d]: x: %d\ttrue_fitness: %lld\tfitness: %llu\t - %p\n", i, p[i].x, p[i].true_fitness, p[i].fitness, &p[i]);
     }
     gnuplot_close(h);
 }
+
+/*  Evaluate fitness of each chromosome, normalize to handle negative values, and return sum of fitness   */
+int64_t get_fitness(struct chromosome p[POPULATION_SIZE]) {
+    int64_t     sum = 0,
+                min = 0;
+
+    /* Get fitness of each chromosome and find minimum value for normalization */
+    for (uint16_t i = 0; i < POPULATION_SIZE; i++) {
+        p[i].fitness        = f(p[i].phenotype);
+        p[i].true_fitness   = p[i].fitness;
+        if (p[i].fitness < min)
+            min = p[i].fitness;
+
+        //printf("p[%d] x: %d\tfitness: %lld\tmin: %lld\n", i, p[i].x, p[i].fitness, min);
+    }
+
+    /* Normalize fitness to handle negative values and obtain sum of all */
+    for (uint16_t i = 0; i < POPULATION_SIZE; i++) {
+        p[i].fitness    += labs(min);
+        sum             += p[i].fitness;
+
+        //printf("p[%d] x: %d\tfitness: %lld\tsum: %lld\n", i, p[i].x, p[i].fitness, sum);
+    }
+
+    //printf("\n\n SUM OF FITNESS: %lld\n", sum);
+
+    return sum;
+}
+
+/*  Get probability of selection and Cumulative probability distribution of each chromosome */
+void get_probabilites(struct chromosome p[POPULATION_SIZE], int64_t sof) {
+    double sum_pr = 0;
+    for (uint16_t i = 0; i < POPULATION_SIZE; i++) {
+        p[i].probability    = (double)p[i].fitness / (double)sof;
+        sum_pr              += p[i].probability;
+        p[i].cdf            = sum_pr;
+        printf("p[%d]: phenotype: %llu\ttrue_fitness: %lld\tfitness: %llu\tprobability: %f\tcdf: %f\t %p\n", i, p[i].phenotype, p[i].true_fitness, p[i].fitness, p[i].probability, p[i].cdf, &p[i]);
+    }
+}
+
+
+/*  Create new generation */
+void procreate(struct chromosome p[POPULATION_SIZE], struct chromosome pnext[POPULATION_SIZE], uint8_t chrome_len, uint8_t n_vars) {
+    struct chromosome *parent1, *parent2, child1, child2;
+
+    child1.genotype = (uint8_t*) calloc(chrome_len, sizeof(uint8_t));
+    child2.genotype = (uint8_t*) calloc(chrome_len, sizeof(uint8_t));
+    child1.vars     = (struct variable*) calloc(n_vars, sizeof(struct variable));
+    child2.vars     = (struct variable*) calloc(n_vars, sizeof(struct variable));
+
+    for (uint16_t i = 0; i < POPULATION_SIZE; i += 2) {
+        parent1 = select_parent(p);
+        parent2 = select_parent(p);
+        for (uint8_t j = 0; j < chrome_len; j++) {
+            child1.genotype[j] = parent1->genotype[j];
+            child2.genotype[j] = parent2->genotype[j];
+        }
+        /* Do crossover if CROSSOVER_RATE is met */
+        if (rng() <= CROSSOVER_RATE)
+            crossover(parent1->genotype, parent2->genotype, &child1, &child2, chrome_len);
+        /* Do mutation if MUTATION_RATE is met */
+        if (rng() <= MUTATION_RATE)
+            mutate(child1.genotype, chrome_len);
+        if (rng() <= MUTATION_RATE )
+            mutate(child2.genotype, chrome_len);
+
+        /* Assign children to new generation */
+        for (uint8_t j = 0; j < chrome_len; j++) {
+            pnext[i].genotype[j]    = child1.genotype[j];
+            pnext[i+1].genotype[j]  = child2.genotype[j];
+        }
+    }
+}
+
+/*  Crossover Operator.
+    Get two new offsprings by crossing two given parents at a single point */
+void crossover(uint8_t *geno1, uint8_t *geno2, struct chromosome *child1, struct chromosome *child2, uint8_t chrome_len) {
+    /*  Get random cutpoint's locus
+        cutpoint >= 1 && cutpoint < chromosome's size */
+    uint8_t cutpoint = d_unif(rng(), 1, chrome_len);
+    for (uint8_t i = cutpoint; i < chrome_len; i++) {
+        child1->genotype[i] = geno2[i];
+        child2->genotype[i] = geno1[i];
+    }
+}
+
+
+/*  Mutation Operator.
+    Create a random gene of a given chromosome */
+void mutate(uint8_t *geno, uint8_t chrome_len) {
+    uint8_t locus   = d_unif(rng(), 0, chrome_len);
+    geno[locus] = (geno[locus] == 0) ? 1 : 0;
+}
+
 
 /*  Cryptographically Secure Pseudornadom Number Generator
     Read bytes from /dev/random device file. Each byte from the file is
@@ -200,7 +341,6 @@ double rng() {
     return point_value;
 }
 
-
 /* Discrete Uniform Value.
     With a point value of x when 0 ≤ x ≤ 1, get an uniformly
     equivalent int value y as a ≤ y < b*/
@@ -221,140 +361,21 @@ double cud(double x, double a, double b) {
 }
 
 
-/*  Create new generation */
-void procreate(struct chromosome p[POPULATION_SIZE], struct chromosome pnext[POPULATION_SIZE], int64_t *sof) {
-    struct chromosome *parent1, *parent2, child1, child2;
-    printf("inside procreate p: %p\t new_gen: %p\n", &p[0], &pnext[0]);
-    for (uint16_t i = 0; i < POPULATION_SIZE; i += 2) {
-        parent1 = select_parent(p, sof);
-        parent2 = select_parent(p, sof);
-
-        //printf("\nparent1: x: %d\ttrue fitness: %lld\tfitness: %llu\tprobability: %f\tcdf: %f\t - %p\n", parent1->x, parent1->true_fitness,parent1->fitness, parent1->probability, parent1->cdf, &parent1);
-        //printf("parent2: x: %d\ttrue fitness: %lld\tfitness: %llu\tprobability: %f\tcdf: %f\t - %p\n", parent2->x, parent2->true_fitness, parent2->fitness, parent2->probability, parent2->cdf, &parent2);
-        //show_bits(parent1->x);
-        //show_bits(parent2->x);
-
-        /* Do crossover if CROSSOVER_RATE is met */
-        if (rng() <= CROSSOVER_RATE)
-            crossover(parent1->x, parent2->x, &child1, &child2);
-
-        //printf("crossover after:\n");
-        //show_bits(child1.x);
-        //show_bits(child2.x);
-        //printf("mutation after:\n");
-
-        /* Do mutation if MUTATION_RATE is met */
-        if (rng() <= MUTATION_RATE)
-            mutate(&child1.x);
-        if (rng() <= MUTATION_RATE )
-            mutate(&child2.x);
-
-        /* Assign children to new generation */
-        pnext[i]    = child1;
-        pnext[i+1]  = child2;
-
-        //printf("\nchilds bits:\n");
-        //printf("child1: x: %d - %p\n", child1.x, &child1);
-        //printf("child2: x: %d - %p\n", child2.x, &child2);
-        //show_bits(child1.x);
-        //show_bits(child2.x);
-    }
-}
-
-
 /*  Select chromosomes for next generation through Roulette Wheel selection */
-struct chromosome *select_parent(struct chromosome p[POPULATION_SIZE], int64_t *sof) {
+struct chromosome *select_parent(struct chromosome p[POPULATION_SIZE]) {
     double roulette_shot;
     uint16_t i      = 0;
     roulette_shot   = rng();
-
     //printf("\nroulette_shot: %f\n", roulette_shot);
-
     while (roulette_shot > p[i].cdf)
         i++;
-
     //printf("p[%d]: x: %d\ttrue_fitness: %lld\tfitness: %llu\tprobability: %f\tcdf: %f\t - %p\n", i, p[i].x, p[i].true_fitness, p[i].fitness, p[i].probability, p[i].cdf, &p[i]);
-
     return &p[i];
 }
 
 
-/*  Get probability of selection and Cumulative probability distribution of each chromosome */
-void get_probabilites(struct chromosome p[POPULATION_SIZE], int64_t sof) {
-    double sum_pr = 0;
-    for (uint16_t i = 0; i < POPULATION_SIZE; i++) {
-        p[i].probability    = (double)p[i].fitness / (double)sof;
-        sum_pr              += p[i].probability;
-        p[i].cdf            = sum_pr;
-
-        printf("p[%d]: x: %d\ttrue_fitness: %lld\tfitness: %llu\tprobability: %f\tcdf: %f\t %p\n", i, p[i].x, p[i].true_fitness, p[i].fitness, p[i].probability, p[i].cdf, &p[i]);
-    }
-}
-
-
-/*  Evaluate fitness of each chromosome, normalize to handle negative values, and return sum of fitness   */
-int64_t get_fitness(struct chromosome p[POPULATION_SIZE]) {
-    int64_t     sum = 0,
-                min = 0;
-
-    /* Get fitness of each chromosome and find minimum value for normalization */
-    for (uint16_t i = 0; i < POPULATION_SIZE; i++) {
-        p[i].fitness        = f(p[i].x);
-        p[i].true_fitness   = p[i].fitness;
-        if (p[i].fitness < min)
-            min = p[i].fitness;
-
-        //printf("p[%d] x: %d\tfitness: %lld\tmin: %lld\n", i, p[i].x, p[i].fitness, min);
-    }
-
-    /* Normalize fitness to handle negative values and obtain sum of all */
-    for (uint16_t i = 0; i < POPULATION_SIZE; i++) {
-        p[i].fitness    += labs(min);
-        sum             += p[i].fitness;
-
-        //printf("p[%d] x: %d\tfitness: %lld\tsum: %lld\n", i, p[i].x, p[i].fitness, sum);
-    }
-
-    //printf("\n\n SUM OF FITNESS: %lld\n", sum);
-
-    return sum;
-}
-
-
-/*  Mutation Operator.
-    Create a random gene of a given chromosome */
-void mutate(uint8_t *x) {
-    uint8_t bit_to_mutate   = d_unif(rng(), 0, sizeof(uint8_t)*8);
-    uint8_t  mask           = 1 << bit_to_mutate;
-    *x                      ^= mask;
-}
-
-
-/*  Crossover Operator.
-    Get two new offsprings by crossing two given parents at a single point */
-void crossover(uint8_t x1, uint8_t x2, struct chromosome *child1, struct chromosome *child2) {
-    /*  Get random cutpoint's locus
-        cutpoint >= 0 && cutpoint < chromosome's size */
-    uint8_t cutpoint = d_unif(rng(), 1, sizeof(uint8_t)*8);
-    //printf("cutpoint: %d", cutpoint);
-    /*  Get mask with all 0's left to cutpoint's locus and all 1's to its right
-        Used for & bit operation */
-    uint8_t mask1 = pow(2, cutpoint) - 1;
-    //printf("mask1: ");
-    show_bits(mask1);
-    /*  Get mask with all 1's left to cutpoint's locus and all 0s to its right
-        Used for | bit operation */
-    uint8_t mask2 = pow(2, sizeof(uint8_t)*8) - 1 - mask1;
-    /* Crossover bit operation */
-    child1->x = (x1 | (x2 & mask1)) & (x2 | mask2);
-    child2->x = (x2 | (x1 & mask1)) & (x1 | mask2);
-
-    //printf("cutpoint: %d\n", cutpoint);
-}
-
-
 /*  Function to evaluate: f(x) = 60x - x^2 */
-int64_t f(uint8_t x) {
+int64_t f(int64_t x) {
     return 60 * x - pow(x,2);
 }
 
