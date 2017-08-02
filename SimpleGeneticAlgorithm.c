@@ -7,6 +7,7 @@
 #include "../libraries/gnuplot_i/src/gnuplot_i.h"
 
 /*
+    TODO: Pass only 10% of chromosomes to next gen unaltered
     TODO: Codificación Gray
     TODO: Implement Error Tolerance (EPSILON)
     TODO: Show plot for standard deviation, avg fitness, max fitness for each GENERATIONS
