@@ -130,7 +130,10 @@ void eval_all_vars(struct chromosome p[POPULATION_SIZE], uint8_t n) {
 
 /* Evaluate a single variable */
 void eval_var(struct chromosome chrome, uint8_t i) {
-    chrome.vars[i].value = eval_bin_array(&chrome.genotype[chrome.vars[i].position_in_genotype], chrome.vars[i].bits_len);
+    double decimal_value = eval_bin_array(&chrome.genotype[chrome.vars[i].position_in_genotype], chrome.vars[i].bits_len);
+    chrome.vars[i].value = chrome.vars[i].lower_lim +
+        ( (chrome.vars[i].upper_lim - chrome.vars[i].lower_lim) / (pow(2,chrome.vars[i].bits_len)-1) ) *
+        decimal_value;
 }
 
 /* Create starting population */
@@ -155,10 +158,10 @@ void init_population(struct chromosome p[POPULATION_SIZE], struct variable *vars
     }
 }
 
-/*  Get amount of bits needed to cover search space with given precision
-    ceil( log10(xu-xl) / log10(precision) )*/
+/*  Get amount of bits needed to cover search space with given precision.
+    Equivalent to: ceil( log10(xu-xl) / log10(precision) )*/
 uint8_t get_bits_len(int32_t xl, int32_t xu, double precision) {
-    return (uint8_t)ceil( log2( ((double)(xu-xl)/precision) - 1.0) );
+    return (uint8_t)ceil( log2( ((double)(xu-xl)/precision) - 1.0 ) );
 }
 
 
