@@ -41,7 +41,7 @@ struct chromosome{
     double          probability;    /* Probability of selection                 */
     double          cdf;            /* Cumulative probability distribution      */
     double          expected_p;     /* Expected population                      */
-    struct variable *vars;           /* Array of variables in genomea            */
+    struct variable *vars;          /* Array of variables in genomea            */
 };
 
 /* Functions */
@@ -60,7 +60,6 @@ struct chromosome   *select_parent      (struct chromosome p[POPULATION_SIZE]);
 void                mutate              (uint8_t *geno, uint8_t chrome_len);
 void                run                 (struct chromosome p[POPULATION_SIZE], uint16_t iters, uint8_t chrome_len, struct variable *vars, uint8_t n_vars);
 void                procreate           (struct chromosome p[POPULATION_SIZE], struct chromosome pnext[POPULATION_SIZE], uint8_t chrome_len, uint8_t n_vars);
-void                show_bits           (uint8_t x);
 int64_t             f                   (int64_t x);
 double              rng                 ();
 double              cud                 (double x, double a, double b);
@@ -382,7 +381,6 @@ double cud(double x, double a, double b) {
     return (x-a) / (b-a) * (b-a);
 }
 
-
 /*  Select chromosomes for next generation through Roulette Wheel selection */
 struct chromosome *select_parent(struct chromosome p[POPULATION_SIZE]) {
     double roulette_shot;
@@ -395,16 +393,7 @@ struct chromosome *select_parent(struct chromosome p[POPULATION_SIZE]) {
     return &p[i];
 }
 
-
 /*  Function to evaluate: f(x) = 60x - x^2 */
 int64_t f(int64_t x) {
     return 60 * x - pow(x,2);
-}
-
-
-/*  Print bit array of a given number */
-void show_bits(uint8_t x) {
-    for (int i = (sizeof(uint8_t)*8) - 1; i >= 0; i--)
-        (x & (1u << i)) ? putchar('1') : putchar('0');
-	printf("\n");
 }
