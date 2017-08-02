@@ -68,7 +68,7 @@ uint16_t            d_unif              (double x, double a, double b);
 
 
 int main() {
-    struct chromosome   population[POPULATION_SIZE];
+    struct chromosome   *population = (struct chromosome*) calloc(POPULATION_SIZE, sizeof(struct chromosome));
     uint16_t            iterations;
     uint8_t             num_vars;
 
@@ -170,6 +170,7 @@ double eval_bin_array(uint8_t *bin_array, uint8_t len){
 
     return value;
 }
+
 /* Evaluate population */
 void eval_population(struct chromosome p[POPULATION_SIZE], uint8_t n_vars) {
     /* Get generation fitness */
@@ -283,12 +284,23 @@ void get_probabilites(struct chromosome p[POPULATION_SIZE], int64_t sof) {
 void procreate(struct chromosome p[POPULATION_SIZE], struct chromosome pnext[POPULATION_SIZE], uint8_t chrome_len, uint8_t n_vars) {
     struct chromosome *parent1, *parent2, child1, child2;
 
-    child1.genotype = (uint8_t*) calloc(chrome_len, sizeof(uint8_t));
-    child2.genotype = (uint8_t*) calloc(chrome_len, sizeof(uint8_t));
-    child1.vars     = (struct variable*) calloc(n_vars, sizeof(struct variable));
-    child2.vars     = (struct variable*) calloc(n_vars, sizeof(struct variable));
+    child1.genotype     = (uint8_t*) calloc(chrome_len, sizeof(uint8_t));
+    child2.genotype     = (uint8_t*) calloc(chrome_len, sizeof(uint8_t));
+    child1.vars         = (struct variable*) calloc(n_vars, sizeof(struct variable));
+    child2.vars         = (struct variable*) calloc(n_vars, sizeof(struct variable));
+    uint16_t i_fittest  = 0;
+    int64_t fittest     = 0;
 
-    for (uint16_t i = 0; i < POPULATION_SIZE; i += 2) {
+    /* Pass fittest chromosome straight to next gen */
+    for (uint16_t i = 0; i < POPULATION_SIZE; i++)
+        if (p[i].fitness > fittest) {
+            i_fittest = i;
+            fittest = p[i].fitness;
+        }
+    for (uint8_t j = 0; j < chrome_len; j++)
+        pnext[0].genotype[j] = p[i_fittest].genotype[j];
+
+    for (uint16_t i = 1; i < POPULATION_SIZE; i += 2) {
         parent1 = select_parent(p);
         parent2 = select_parent(p);
         for (uint8_t j = 0; j < chrome_len; j++) {
@@ -318,6 +330,7 @@ void crossover(uint8_t *geno1, uint8_t *geno2, struct chromosome *child1, struct
     /*  Get random cutpoint's locus
         cutpoint >= 1 && cutpoint < chromosome's size */
     uint8_t cutpoint = d_unif(rng(), 1, chrome_len);
+
     for (uint8_t i = cutpoint; i < chrome_len; i++) {
         child1->genotype[i] = geno2[i];
         child2->genotype[i] = geno1[i];
