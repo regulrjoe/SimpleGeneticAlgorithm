@@ -184,15 +184,13 @@ void eval_population(struct chromosome p[POPULATION_SIZE], uint8_t n_vars) {
 /*  Run the genetic algorithm through a given population a given amount of times */
 void run(struct chromosome p[POPULATION_SIZE], uint16_t iters, uint8_t chrome_len, struct variable *vars, uint8_t n_vars) {
     int64_t sum_of_fitness;
-    struct chromosome new_gen[POPULATION_SIZE];
-    gnuplot_ctrl *h = gnuplot_init();
+    struct chromosome new_gen[POPULATION_SIZE+1];
+    // gnuplot_ctrl *h = gnuplot_init();
 
-    for (uint16_t i = 0; i < POPULATION_SIZE; i++) {
+    for (uint16_t i = 0; i < POPULATION_SIZE+1; i++) {
         new_gen[i].genotype = (uint8_t*) calloc(chrome_len, sizeof(uint8_t));
         assign_vars(&new_gen[i], vars, n_vars);
     }
-
-    eval_population(p, n_vars);
 
     /* Run generations */
     for (uint16_t i = 0; i < iters; i++) {
@@ -204,6 +202,8 @@ void run(struct chromosome p[POPULATION_SIZE], uint16_t iters, uint8_t chrome_le
         gnuplot_setstyle(h, "points");
 
 
+        /* Evaluate fitness, probabilities and var values */
+        eval_population(p, n_vars);
 
         /* Get new generation */
         procreate(p, new_gen, chrome_len, n_vars);
