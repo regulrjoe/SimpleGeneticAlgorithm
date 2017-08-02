@@ -6,15 +6,16 @@
 #include <unistd.h>
 #include "../libraries/gnuplot_i/src/gnuplot_i.h"
 
-/*  TODO: Write vars value assignment function
+/*
+    TODO: Codificación Gray
     TODO: Implement Error Tolerance (EPSILON)
     TODO: Show plot for standard deviation, avg fitness, max fitness for each GENERATIONS
-    TODO: Pass max fitness to next gen without applying operations to it
-    TODO: Evaluate multivariable equation
     TODO: Research De Jong Functions
     TODO: HowTo search minimum instead of maximum
     TODO: Read a lil bit David Goldberg book Genetic Algorithms in Search
-    TODO: USE SELECTION PRESSURE */
+    TODO: Obtener variancia de la población
+    TODO: Use Tournament Selection
+*/
 
 #define POPULATION_SIZE 10      /* SIZE OF THE POPULATION                   */
 #define MUTATION_RATE   0.05    /* PROBABILITY OF A MUTATION OCURRING       */
