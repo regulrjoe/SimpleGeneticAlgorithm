@@ -73,10 +73,10 @@ typedef struct {
 /* Functions */
 uint8_t         define_vars         (variable_type *vars, uint8_t nv);
 uint8_t         get_genotype_len    (float xl, float xu, float pr);
-void            init_population     (population_type p);
-void            run                 (population_type p, uint16_t iters);
-void            eval_population     (population_type p);
-void            eval_vars           (population_type p);
+void            init_population     (population_type *p);
+void            run                 (population_type *p, uint16_t iters);
+void            eval_population     (population_type *p);
+void            eval_vars           (population_type *p);
 double          eval_bits           (uint8_t *bits, uint8_t len);
 void            get_fitness         (population_type p);
 void            get_probabilites    (population_type p);
@@ -89,7 +89,7 @@ void            mutate              (uint8_t *geno, uint8_t chrome_len);
 void            print_chromosome    (chromosome_type chrome, uint8_t nv);
 void            print_genotype      (uint8_t *genotype, uint8_t chrome_len);
 void            save_datapoints     (population_type p);
-void            plot_population     (gnuplot_ctrl *h, population_type p);
+void            plot_population     (gnuplot_ctrl *h, variable_type *vars);
 double          f                   (double *values);
 double          rng                 ();
 double          cud                 (double x, double a, double b);
@@ -106,16 +106,16 @@ int main() {
     printf("\nHow many variables do you wish to work with?: ");
     scanf("%d", &p.num_of_vars);
 
-    p.vars = (variable_type*) calloc(nv, sizeof(variable_type));
+    p.vars = (variable_type*) calloc(p.num_of_vars, sizeof(variable_type));
     p.chromosome_len = define_vars(p.vars, p.num_of_vars);
 
     printf("\nEnter number of generations: ");
     scanf("%hd", &iters);
 
     /* Create starting population */
-    init_population(p);
+    init_population(&p);
     /* Run algorithm */
-    run(p, iters);
+    run(&p, iters);
 
     return 0;
 }
@@ -145,43 +145,42 @@ uint8_t get_genotype_len(float xl, float xu, float pr) {
 }
 
 /* Create starting population */
-void init_population(population_type p) {
+void init_population(population_type *p) {
     for (int i = 0; i < POPULATION_SIZE; i++){
         /* Memory allocation */
-        p.chromosomes[i].genotype   = (uint8_t*) calloc(p.chromosome_len, sizeof(uint8_t));
-        p.chromosomes[i].values     = (double*) calloc(p.num_of_vars, sizeof(double));
+        p->chromosomes[i].genotype   = (uint8_t*) calloc(p->chromosome_len, sizeof(uint8_t));
+        p->chromosomes[i].values     = (double*) calloc(p->num_of_vars, sizeof(double));
 
         /* Genotype intialization with random values 0-1 */
-        for (uint8_t j = 0; j < p.chromosome_len; j++)
-            p.chromosomes[i].genotype[j] = d_unif(rng(), 0, 2);
+        for (uint8_t j = 0; j < p->chromosome_len; j++)
+            p->chromosomes[i].genotype[j] = d_unif(rng(), 0, 2);
 
         /* Get genotype decimal value */
-        p.chromosomes[i].phenotype = (int64_t)eval_bits(p.chromosomes[i].genotype, p.chromosome_len);
+        p->chromosomes[i].phenotype = (int64_t)eval_bits(p->chromosomes[i].genotype, p->chromosome_len);
     }
 }
 
 /*  Run the genetic algorithm through a given population a given amount of times */
-void run(population_type p, uint16_t iters) {
+void run(population_type *p, uint16_t iters) {
     /* Initialize gnuplot handler */
     gnuplot_ctrl *h = gnuplot_init();
 
     /* Memory allocation */
     chromosome_type new_gen [POPULATION_SIZE+1];
     for (uint16_t i = 0; i < POPULATION_SIZE+1; i++) {
-        new_gen[i].genotype = (uint8_t*) calloc(p.chromosome_len, sizeof(uint8_t));
-        new_gen[i].values   = (double*) calloc(p.num_of_vars, sizeof(double));
+        new_gen[i].genotype = (uint8_t*) calloc(p->chromosome_len, sizeof(uint8_t));
+        new_gen[i].values   = (double*) calloc(p->num_of_vars, sizeof(double));
     }
 
     /* Run generations */
     for (uint16_t i = 0; i < iters; i++) {
         printf("\n\n----------------- GENERATION %d -----------------\n", i);
-
         /* Evaluate fitness, probabilities and var values */
         eval_population(p);
 
         /* Print chromosomes */
         for (uint8_t i = 0; i < POPULATION_SIZE; i++) {
-            print_chromosome(p.chromosomes[i], nv);
+            print_chromosome(p->chromosomes[i], p->num_of_vars);
         }
 
         /* Get new generation */
@@ -189,91 +188,16 @@ void run(population_type p, uint16_t iters) {
 
         /* Assign new generation's properties to current population */
         for (uint16_t j=0; j < POPULATION_SIZE; j++) {
-            // double  px  = p[j].phenotype,
-            //         ptf = p[j].fitness;
-            //  gnuplot_plot_xy(h, &px, &ptf, 1, "");
-
             /* assign new_gen genotype to current_gen */
-            for (uint8_t k=0; k < chrome_len; k++)
-                p.chromosomes[j].genotype[k] = new_gen[j].genotype[k];
+            for (uint8_t k=0; k < p->chromosome_len; k++)
+                p->chromosomes[j].genotype[k] = new_gen[j].genotype[k];
             /* Get new phenotype */
-            p.chromosomes[j].phenotype = (int64_t)eval_bits(p.chromosomes[j].genotype, p.chromosome_len);
+            p->chromosomes[j].phenotype = (int64_t)eval_bits(p->chromosomes[j].genotype, p->chromosome_len);
         }
-        save_datapoints(p, nv);
-        plot_population(h, p.vars);
+        save_datapoints(p);
+        plot_population(h, p->vars);
     }
-    // printf("\n\n----------------- LAST GENERATION -----------------\n");
-    // // gnuplot_setstyle(h, "lines");
-    // // gnuplot_cmd(h, "set xrange [0:255]");
-    // // gnuplot_cmd(h, "set yrange [-50000:2000]");
-    // // gnuplot_plot_equation(h, "60*x - x**2", "f(x) = 60x - x^2");
-    // // gnuplot_setstyle(h, "points");
-    //
-    // /* Get last generation fitness, at this point probabilities are useless */
-    // eval_population(p, vars, nv);
-    // /* Print chromosomes */
-    // for (uint8_t i = 0; i < POPULATION_SIZE; i++) {
-    //     print_chromosome(p[i], nv);
-    // }
-    //
-    // // for (uint16_t i = 0; i < POPULATION_SIZE; i++){
-    // //     double  px  = p[i].phenotype,
-    // //             ptf = p[i].fitness;
-    // //      gnuplot_plot_xy(h, &px, &ptf, 1, "");
-    // // }
     gnuplot_close(h);
-}
-
-/* Save datapoints to data/datapoints.data file */
-void save_datapoints(population_type p) {
-    /* Open or create data/datapoints.data for writing */
-    FILE *fp = fopen("data/datapoints.csv", "w");
-    /* Abort if connection is lost */
-    if (!fp) {
-        perror("Save Datapoints");
-        exit(-1);
-    }
-
-    uint8_t i, j;
-    for (i = 0; i < p.num_of_vars; i++)
-        fprintf(fp, "var[%d], ", i);
-    fprintf(fp, "fitness");
-    fprintf(fp, "\n");
-
-    for (i = 0; i < POPULATION_SIZE; i++) {
-        /* save value[0], value[1], fitness to file.data */
-        for (j = 0; j < p.num_of_vars; j++)
-            fprintf(fp, "%lf,", p.chromosomes[i].values[j]);
-        fprintf(fp, "%lf", p.chromosomes[i].fitness);
-        fprintf(fp, "\n");
-    }
-
-    fclose(fp);
-}
-
-/* Plot equation surface if 3D */
-void plot_population(gnuplot_ctrl *h, variable_type *vars) {
-
-    char *xrange = (char *)malloc(30 * sizeof(char));
-    char *yrange = (char *)malloc(30 * sizeof(char));
-    sprintf(xrange, "set xrange [%f:%f]", vars[0].xl, vars[0].xu);
-    sprintf(yrange, "set yrange [%f:%f]", vars[1].xl, vars[1].xu);
-
-    gnuplot_setstyle(h, "lines");
-    gnuplot_cmd(h, xrange);
-    gnuplot_cmd(h, yrange);
-
-    gnuplot_cmd(h, "set xlabel 'var 0'");
-    gnuplot_cmd(h, "set ylabel 'var 1'");
-    gnuplot_cmd(h, "set zlabel 'fitness'");
-    gnuplot_cmd(h, "set ticslevel 0");
-    gnuplot_cmd(h, "set hidden3d");
-    gnuplot_cmd(h, "set isosample 70");
-    gnuplot_cmd(h, "splot (1+cos(12*sqrt(x**2+y**2)))/(0.5*(x**2+y**2)+2), 'data/datapoints.csv' every::1" );
-
-
-    sleep(SLEEP_LENGTH);
-    gnuplot_resetplot(h);
 }
 
 /* Evaluate population */
@@ -292,7 +216,7 @@ void eval_population(population_type p) {
 void eval_vars(population_type p) {
     double decimal;
     for (uint8_t i = 0; i < POPULATION_SIZE; i++)
-        for (uint8_t j = 0; j < nv; j++) {
+        for (uint8_t j = 0; j < p.num_of_vars; j++) {
             decimal = eval_bits(&p.chromosomes[i].genotype[p.vars[j].pos], p.vars[j].bits_len);
 
             /* xl + [(xu-xl)/(2^bl - 1)] * decimal */
@@ -319,7 +243,6 @@ void get_fitness(population_type p) {
     }
     p.sum_of_fitness = sum;
     p.avg_fitness = sum/POPULATION_SIZE;
-    return sum;
 }
 
 /*  Get probability of selection and Cumulative probability distribution of each chromosome */
@@ -364,7 +287,7 @@ void procreate(population_type p, chromosome_type new_gen[POPULATION_SIZE+1]) {
         fittest = -DBL_MAX;
 
         /* Pass fittest chromosome straight to next gen */
-        for (uint8_t j = 0; j < chrome_len; j++)
+        for (uint8_t j = 0; j < p.chromosome_len; j++)
             new_gen[ngi].genotype[j] = p.chromosomes[i_fittest].genotype[j];
 
         ngi++;
@@ -387,7 +310,7 @@ void procreate(population_type p, chromosome_type new_gen[POPULATION_SIZE+1]) {
             mutate(child2.genotype, p.chromosome_len);
 
         /* Assign children to new generation */
-        for (uint8_t j = 0; j < chrome_len; j++) {
+        for (uint8_t j = 0; j < p.chromosome_len; j++) {
             new_gen[ngi].genotype[j]    = child1.genotype[j];
             new_gen[ngi+1].genotype[j]  = child2.genotype[j];
         }
@@ -401,7 +324,7 @@ void procreate(population_type p, chromosome_type new_gen[POPULATION_SIZE+1]) {
 }
 
 /*  Select chromosomes for next generation through Roulette Wheel selection */
-chromosome_type *select_parent(chromosome_type p) {
+chromosome_type *select_parent(population_type p) {
     /* Tournament Selection */
     return tournament(p);
     /* Roulette Shot Selection */
