@@ -16,6 +16,7 @@
     TODO: Show plot for standard deviation, avg fitness, max fitness for each GENERATIONS
     TODO: Read a lil bit David Goldberg book Genetic Algorithms in Search
     TODO: Obtener variancia de la población
+    TODO: Buscar mínimo o máximo
     TODO: Two-point crossover
     TODO: define_vars creates and returns pointer to vars instead of using pointer as argument
     TODO: add chrome_len attribute to chromosome struct
@@ -32,6 +33,9 @@
 #define PASSTHROUGH_PCT 0.1     /* % OF FITTEST CHROMES WHO GO STRAIGHT THROUGH */
 #define TOURNEY_RATE    0.8     /* PROBABILITY OF SELECTING FITTEST OF ROUND    */
 
+
+/* Enum to specify if it's looking for a min or a max optimum */
+typedef enum {MIN, MAX} optimum_type;
 
 /* Variable structure */
 struct variable{
@@ -58,10 +62,11 @@ struct population{
     struct chromosome   chromosomes[POPULATION_SIZE];
     double              sum_of_fitness;
     double              avg_fitness;
-    double              fittest;
+    struct chromosome   *fittest_chromosome;
     uint8_t             chromosome_len;
     uint8_t             num_vars;
     struct variable     *vars;
+    optimum_type   optimum;
 }
 
 /* Functions */
