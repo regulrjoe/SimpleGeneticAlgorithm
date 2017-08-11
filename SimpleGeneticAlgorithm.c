@@ -29,7 +29,7 @@
 */
 
 /* Constants */
-#define POPULATION_SIZE     30      /* SIZE OF THE POPULATION                       */
+#define POPULATION_SIZE     10      /* SIZE OF THE POPULATION                       */
 #define MUTATION_THRESH     0.2     /* PROBABILITY OF A MUTATION OCURRING           */
 #define CROSSOVER_THRESH    0.8     /* PROBABILITY OF A CROSSOVER HAPPENING         */
 #define SLEEP_LENGTH        1       /* GNUPLOT SLEEP TIMER THROUGH GENERATIONS      */
@@ -93,7 +93,7 @@ void            mutate              (uint8_t *geno, uint8_t chrome_len);
 void            print_chromosome    (chromosome_type chrome, uint8_t nv);
 void            print_genotype      (uint8_t *genotype, uint8_t chrome_len);
 void            save_datapoints     (population_type p);
-void            plot_population     (gnuplot_ctrl *h, variable_type *vars);
+void            plot_datapoints     (gnuplot_ctrl *h, variable_type *vars);
 double          f                   (double *values);
 double          rng                 ();
 double          cud                 (double x, double a, double b);
@@ -207,8 +207,8 @@ void run(population_type *p, uint16_t iters) {
             /* Get new phenotype */
             p->chromosomes[j].phenotype = (int64_t)eval_bits(p->chromosomes[j].genotype, p->chromosome_len);
         }
-        save_datapoints(p);
-        plot_population(h, p->vars);
+        save_datapoints(*p);
+        plot_datapoints(h, p->vars);
     }
     gnuplot_close(h);
 }
@@ -443,6 +443,62 @@ void print_chromosome(chromosome_type chrome, uint8_t nv) {
         printf("val%d: %lf\t", i, chrome.values[i]);
     }
     printf("fitness: %lf\tprob_selec: %lf\texpected_pop: %lf\n", chrome.fitness, chrome.probability, chrome.expected_p);
+}
+
+
+
+/* Plot equation surface and its datapoints on top of it */
+void plot_datapoints(gnuplot_ctrl *h, variable_type *vars) {
+
+    char *xrange = (char *)malloc(30 * sizeof(char));
+    char *yrange = (char *)malloc(30 * sizeof(char));
+    sprintf(xrange, "set xrange [%f:%f]", vars[0].xl, vars[0].xu);
+    sprintf(yrange, "set yrange [%f:%f]", vars[1].xl, vars[1].xu);
+
+    gnuplot_setstyle(h, "lines");
+    gnuplot_cmd(h, xrange);
+    gnuplot_cmd(h, yrange);
+
+    gnuplot_cmd(h, "set xlabel 'var 0'");
+    gnuplot_cmd(h, "set ylabel 'var 1'");
+    gnuplot_cmd(h, "set zlabel 'fitness'");
+    gnuplot_cmd(h, "set ticslevel 0");
+    gnuplot_cmd(h, "set hidden3d");
+    gnuplot_cmd(h, "set isosample 70");
+    gnuplot_cmd(h, "splot (1+cos(12*sqrt(x**2+y**2)))/(0.5*(x**2+y**2)+2), 'data/datapoints.csv' every::1" );
+
+
+    sleep(SLEEP_LENGTH);
+    gnuplot_resetplot(h);
+}
+
+
+
+/* Save datapoints to data/datapoints.data file */
+void save_datapoints(population_type p) {
+    /* Open or create data/datapoints.data for writing */
+    FILE *fp = fopen("data/datapoints.csv", "w");
+    /* Abort if connection is lost */
+    if (!fp) {
+        perror("Save Datapoints");
+        exit(-1);
+    }
+
+    uint8_t i, j;
+    for (i = 0; i < p.num_of_vars; i++)
+        fprintf(fp, "var[%d], ", i);
+    fprintf(fp, "fitness");
+    fprintf(fp, "\n");
+
+    for (i = 0; i < POPULATION_SIZE; i++) {
+        /* save value[0], value[1], fitness to file.data */
+        for (j = 0; j < p.num_of_vars; j++)
+            fprintf(fp, "%lf, ", p.chromosomes[i].values[j]);
+        fprintf(fp, "%lf", p.chromosomes[i].fitness);
+        fprintf(fp, "\n");
+    }
+
+    fclose(fp);
 }
 
 
