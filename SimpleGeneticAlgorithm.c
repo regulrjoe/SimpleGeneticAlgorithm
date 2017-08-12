@@ -29,10 +29,9 @@
 */
 
 /* Constants */
-#define POPULATION_SIZE     10      /* SIZE OF THE POPULATION                       */
+#define POPULATION_SIZE     50      /* SIZE OF THE POPULATION                       */
 #define MUTATION_THRESH     0.2     /* PROBABILITY OF A MUTATION OCURRING           */
 #define CROSSOVER_THRESH    0.8     /* PROBABILITY OF A CROSSOVER HAPPENING         */
-#define SLEEP_LENGTH        1       /* GNUPLOT SLEEP TIMER THROUGH GENERATIONS      */
 #define PASSTHROUGH_THRESH  0.1     /* % OF FITTEST CHROMES WHO GO STRAIGHT THROUGH */
 #define TOURNEY_THRESH      0.8     /* PROBABILITY OF SELECTING FITTEST OF ROUND    */
 
@@ -467,8 +466,6 @@ void plot_datapoints(gnuplot_ctrl *h, variable_type *vars) {
     gnuplot_cmd(h, "set isosample 70");
     gnuplot_cmd(h, "splot (1+cos(12*sqrt(x**2+y**2)))/(0.5*(x**2+y**2)+2), 'data/datapoints.csv' every::1" );
 
-
-    sleep(SLEEP_LENGTH);
     gnuplot_resetplot(h);
 }
 
