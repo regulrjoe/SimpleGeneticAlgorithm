@@ -94,7 +94,7 @@ void            mutate              (uint8_t *geno, uint8_t chrome_len);
 void            print_chromosome    (chromosome_t chrome, uint8_t nv);
 void            print_genotype      (uint8_t *genotype, uint8_t chrome_len);
 void            save_datapoints     (population_t *p);
-void            save_statistics     (chromosome_t fittest, uint16_t gen);
+void            save_statistics     (population_t *p, uint16_t gen);
 void            plot_avg_fitness    (gnuplot_ctrl *h, uint16_t iters);
 void            plot_datapoints     (gnuplot_ctrl *h, variable_t *vars);
 void            plot_fittest        (gnuplot_ctrl *h, uint16_t iters);
@@ -199,9 +199,8 @@ void run(population_t *p, uint16_t iters) {
         /* Evaluate fitness, probabilities and var values */
         eval_population(p);
         /* Save to file and plot: datapoints, fittest chromosome, avg fitness & standard deviation */
-        save_fittest(*p->fittest_chromosome, g, p->num_of_vars);
         save_datapoints(p);
-        plot_fittest(h2, iters);
+        save_statistics(p, g);
         plot_datapoints(h1, p->vars);
 
         /* Print chromosomes */
@@ -237,6 +236,8 @@ void eval_population(population_t *p) {
     printf("Avg fitness: %lf\n", p->avg_fitness);
     /* Get generation probabilities */
     get_probabilites(p);
+
+    p->std_deviation = std_deviation(p);
 }
 
 
@@ -266,7 +267,7 @@ double eval_bits(uint8_t *bits, uint8_t len){
 
 
 
-/*  Evaluate fitness of each chromosome and return sum of fitness   */
+/*  Evaluate fitness of each chromosome and assign sum of fitness   */
 void get_fitness(population_t *p) {
     double      sum             = 0,        /* Sum of fitness                   */
                 fittest         = -DBL_MAX; /* Fittest Chromosome's fitness     */
@@ -484,7 +485,7 @@ void save_datapoints(population_t *p) {
         /* save value[0], value[1], fitness to file.data */
         for (j = 0; j < p->num_of_vars; j++)
             fprintf(fp, "%lf, ", p->chromosomes[i].values[j]);
-        fprintf(fp, "%lf", p->chromosomes[i].fitness);
+        fprintf(fp, "%lf, ", p->chromosomes[i].fitness);
         fprintf(fp, "\n");
     }
     fclose(fp);
@@ -506,7 +507,7 @@ void save_statistics(population_t *p, uint16_t gen) {
         /* Open or create data/stats.csv for writing
             Abort if connection is lost */
         if (!(fp = fopen("data/stats.csv", "w")) ) {
-            perror("Save Generation [%d]'s statistics", gen);
+            perror("Save Generation's statistics");
             exit(-1);
         }
 
@@ -521,18 +522,18 @@ void save_statistics(population_t *p, uint16_t gen) {
         fprintf(fp, "\n");
     } else {
         /* Open data/stats.csv for appending */
-        fp = fopen("data/generations_stats.csv", "a");
+        fp = fopen("data/stats.csv", "a");
         /* Abort if connection is lost */
         if (!fp) {
-            perror("Save Generation [%d]'s statistics", gen);
+            perror("Save Generation's statistics");
             exit(-1);
         }
     }
 
     fprintf(fp, "%d, ", gen);   /* save generation */
-    fprintf(fp, "%lf, ", p->fittest_chromosome.fitness); /* save fittest chromosome's fitness */
+    fprintf(fp, "%lf, ", p->fittest_chromosome->fitness); /* save fittest chromosome's fitness */
     for (i = 0; i < p->num_of_vars; i++) {
-        fprintf(fp, "%lf, ", p->fittest_chromosome.values[i]);  /* save fittest_chromosome's value[i] */
+        fprintf(fp, "%lf, ", p->fittest_chromosome->values[i]);  /* save fittest_chromosome's value[i] */
     }
     fprintf(fp, "%lf, ", p->avg_fitness);
     fprintf(fp, "%lf", p->std_deviation);
