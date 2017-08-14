@@ -28,7 +28,7 @@
 */
 
 /* Constants */
-#define POPULATION_S        50      /* SIZE OF THE POPULATION                       */
+#define POPULATION_S        10      /* SIZE OF THE POPULATION                       */
 #define MUTATION_THRESH     0.2     /* PROBABILITY OF A MUTATION OCURRING           */
 #define CROSSOVER_THRESH    0.8     /* PROBABILITY OF A CROSSOVER HAPPENING         */
 #define PASSTHROUGH_THRESH  0.1     /* % OF FITTEST CHROMES WHO GO STRAIGHT THROUGH */
@@ -95,10 +95,10 @@ void            print_chromosome    (chromosome_t chrome, uint8_t nv);
 void            print_genotype      (uint8_t *genotype, uint8_t chrome_len);
 void            save_datapoints     (population_t *p);
 void            save_statistics     (population_t *p, uint16_t gen);
-void            plot_avg_fitness    (gnuplot_ctrl *h, uint16_t iters);
+void            plot_avg_fitness    (gnuplot_ctrl *h);
 void            plot_datapoints     (gnuplot_ctrl *h, variable_t *vars);
-void            plot_fittest        (gnuplot_ctrl *h, uint16_t iters);
-void            plot_std_deviation  (gnuplot_ctrl *h, uint16_t iters);
+void            plot_fittest        (gnuplot_ctrl *h);
+void            plot_std_deviation  (gnuplot_ctrl *h);
 double          std_deviation       (population_t *p);
 double          f                   (double *values);
 double          rng                 ();
@@ -185,6 +185,8 @@ void run(population_t *p, uint16_t iters) {
     /* Initialize gnuplot handler */
     gnuplot_ctrl *h1 = gnuplot_init();
     gnuplot_ctrl *h2 = gnuplot_init();
+    gnuplot_ctrl *h3 = gnuplot_init();
+    gnuplot_ctrl *h4 = gnuplot_init();
 
     /* Memory allocation */
     chromosome_t new_gen[POPULATION_S+1];
@@ -201,7 +203,10 @@ void run(population_t *p, uint16_t iters) {
         /* Save to file and plot: datapoints, fittest chromosome, avg fitness & standard deviation */
         save_datapoints(p);
         save_statistics(p, g);
+        plot_avg_fitness(h2);
         plot_datapoints(h1, p->vars);
+        plot_fittest(h3);
+        plot_std_deviation(h4);
 
         /* Print chromosomes */
         for (uint8_t i = 0; i < POPULATION_S; i++) {
@@ -222,6 +227,8 @@ void run(population_t *p, uint16_t iters) {
     }
     gnuplot_close(h1);
     gnuplot_close(h2);
+    gnuplot_close(h3);
+    gnuplot_close(h4);
 }
 
 
@@ -544,7 +551,15 @@ void save_statistics(population_t *p, uint16_t gen) {
 
 
 /* Plot average fitness of population */
-void plot_avgfitness(gnuplot_ctrl *h, uint16_t iters) {}
+void plot_avg_fitness(gnuplot_ctrl *h) {
+    gnuplot_cmd(h, "set title 'Average Fitness'");
+    gnuplot_setstyle(h, "lines");
+    gnuplot_cmd(h, "set xlabel 'generation'");
+    gnuplot_cmd(h, "set ylabel 'avg fitness'");
+    gnuplot_cmd(h, "plot 'data/stats.csv' using 1:5 with lines");
+
+    gnuplot_resetplot(h);
+}
 
 
 
@@ -575,27 +590,28 @@ void plot_datapoints(gnuplot_ctrl *h, variable_t *vars) {
 
 
 /* Plot fittest chromosome of population */
-void plot_fittest(gnuplot_ctrl *h, uint16_t iters) {
-
-    char *xrange = (char *)malloc(30 * sizeof(char));
-    sprintf(xrange, "set xrange[0:%d]", iters);
-
+void plot_fittest(gnuplot_ctrl *h) {
     gnuplot_cmd(h, "set title 'Fittest Chromosome'");
     gnuplot_setstyle(h, "lines");
-    gnuplot_cmd(h, xrange);
-    gnuplot_cmd(h, "set yrange [0:]");
     gnuplot_cmd(h, "set xlabel 'generation'");
     gnuplot_cmd(h, "set ylabel 'highest fitness'");
-    gnuplot_cmd(h, "plot 'data/fittest.csv' using 1:2 with lines");
+    gnuplot_cmd(h, "plot 'data/stats.csv' using 1:2 with lines");
 
     gnuplot_resetplot(h);
-
 }
 
 
 
 /* Plot standard deviation of population */
-void plot_stddeviation(gnuplot_ctrl *h, uint16_t iters) {}
+void plot_std_deviation(gnuplot_ctrl *h) {
+    gnuplot_cmd(h, "set title 'Standard Deviation'");
+    gnuplot_setstyle(h, "lines");
+    gnuplot_cmd(h, "set xlabel 'generation'");
+    gnuplot_cmd(h, "set ylabel 'std dev'");
+    gnuplot_cmd(h, "plot 'data/stats.csv' using 1:6 with lines");
+
+    gnuplot_resetplot(h);
+}
 
 
 
