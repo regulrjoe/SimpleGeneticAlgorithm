@@ -594,7 +594,18 @@ void plot_fittest(gnuplot_ctrl *h, uint16_t iters) {
 
 
 /* Plot standard deviation of population */
-void plot_stddev(gnuplot_ctrl *h, uint16_t iters) {}
+void plot_stddeviation(gnuplot_ctrl *h, uint16_t iters) {}
+
+
+
+/* Calculate population's standard deviation */
+double std_deviation(population_t *p) {
+    double sd = 0;
+    for (uint16_t i = 0; i < POPULATION_S; i++)
+        sd += pow(fabs(p->chromosomes[i].fitness - p->avg_fitness), 2);
+    sd += sqrt(sd / POPULATION_S);
+    return sd;
+}
 
 
 
