@@ -8,7 +8,6 @@
 #include "../libraries/gnuplot_i/src/gnuplot_i.h"
 
 /*
-
     PENDING
     TODO: Codificación Gray
     TODO: Implement Error Tolerance (EPSILON)
@@ -29,7 +28,7 @@
 */
 
 /* Constants */
-#define POPULATION_SIZE     50      /* SIZE OF THE POPULATION                       */
+#define POPULATION_S        50      /* SIZE OF THE POPULATION                       */
 #define MUTATION_THRESH     0.2     /* PROBABILITY OF A MUTATION OCURRING           */
 #define CROSSOVER_THRESH    0.8     /* PROBABILITY OF A CROSSOVER HAPPENING         */
 #define PASSTHROUGH_THRESH  0.1     /* % OF FITTEST CHROMES WHO GO STRAIGHT THROUGH */
@@ -37,7 +36,9 @@
 
 
 /* Enum to specify if it's looking for a min or a max optimum */
-typedef enum {MIN, MAX} optimum_type;
+typedef enum {MIN, MAX} optimum_enum;
+
+
 
 /* Variable structure */
 typedef struct {
@@ -46,7 +47,7 @@ typedef struct {
     float   xu;         /* Upper limit of variable                      */
     float   pr;         /* Precision of variable value                  */
     uint8_t bits_len;   /* Length of bits used for variable             */
-} variable_type;
+} variable_t;
 
 /* Chromosome structure */
 typedef struct {
@@ -57,48 +58,48 @@ typedef struct {
     double  cdf;            /* Cumulative probability distribution      */
     double  expected_p;     /* Expected population                      */
     double  *values;        /* Decoded value of genes                   */
-} chromosome_type;
+} chromosome_t;
 
 /* Population structure */
 typedef struct {
-    chromosome_type chromosomes[POPULATION_SIZE];
+    chromosome_t    chromosomes[POPULATION_S];
     double          sum_of_fitness;
     double          avg_fitness;
-    chromosome_type *fittest_chromosome;
+    chromosome_t    *fittest_chromosome;
     uint8_t         chromosome_len;
     uint8_t         num_of_vars;
-    variable_type   *vars;
-    optimum_type    optimum;
-} population_type;
+    variable_t      *vars;
+    optimum_enum    optimum;
+    double          std_deviation;
+} population_t;
 
 
 
 /* Functions */
-uint8_t         define_vars         (variable_type *vars, uint8_t nv);
+uint8_t         define_vars         (variable_t *vars, uint8_t nv);
 uint8_t         get_genotype_len    (float xl, float xu, float pr);
-void            init_population     (population_type *p);
-void            run                 (population_type *p, uint16_t iters);
-void            eval_population     (population_type *p);
-void            eval_vars           (population_type *p);
+void            init_population     (population_t *p);
+void            run                 (population_t *p, uint16_t iters);
+void            eval_population     (population_t *p);
+void            eval_vars           (population_t *p);
 double          eval_bits           (uint8_t *bits, uint8_t len);
-void            get_fitness         (population_type *p);
-void            get_probabilites    (population_type *p);
-void            procreate           (population_type *p, chromosome_type new_gen[POPULATION_SIZE+1]);
-chromosome_type *select_parent      (population_type *p);
-chromosome_type *tournament         (population_type *p);
-chromosome_type *roulette           (population_type *p);
-void            crossover           (uint8_t *parent1_geno, uint8_t *parent2_geno, chromosome_type *child1, chromosome_type *child2, uint8_t chrome_len);
+void            get_fitness         (population_t *p);
+void            get_probabilites    (population_t *p);
+void            procreate           (population_t *p, chromosome_t new_gen[POPULATION_S+1]);
+chromosome_t    *select_parent      (population_t *p);
+chromosome_t    *tournament         (population_t *p);
+chromosome_t    *roulette           (population_t *p);
+void            crossover           (uint8_t *parent1_geno, uint8_t *parent2_geno, chromosome_t *child1, chromosome_t *child2, uint8_t chrome_len);
 void            mutate              (uint8_t *geno, uint8_t chrome_len);
-void            print_chromosome    (chromosome_type chrome, uint8_t nv);
+void            print_chromosome    (chromosome_t chrome, uint8_t nv);
 void            print_genotype      (uint8_t *genotype, uint8_t chrome_len);
-void            save_avgfitness     (population_type *p, uint16_t gen);
-void            save_datapoints     (population_type *p);
-void            save_fittest        (chromosome_type fittest, uint16_t gen, uint16_t nvars);
-void            save_stddev         (population_type *p, uint16_t gen);
-void            plot_avgfitness     (gnuplot_ctrl *h, uint16_t iters);
-void            plot_datapoints     (gnuplot_ctrl *h, variable_type *vars);
+void            save_datapoints     (population_t *p);
+void            save_statistics     (chromosome_t fittest, uint16_t gen);
+void            plot_avg_fitness    (gnuplot_ctrl *h, uint16_t iters);
+void            plot_datapoints     (gnuplot_ctrl *h, variable_t *vars);
 void            plot_fittest        (gnuplot_ctrl *h, uint16_t iters);
-void            plot_stddev         (gnuplot_ctrl *h, uint16_t iters);
+void            plot_std_deviation  (gnuplot_ctrl *h, uint16_t iters);
+double          std_deviation       (population_t *p);
 double          f                   (double *values);
 double          rng                 ();
 double          cud                 (double x, double a, double b);
@@ -109,15 +110,15 @@ uint16_t        d_unif              (double x, double a, double b);
 
 
 int main() {
-    population_type     p;          /* Population */
-    uint16_t            iters; /* Generations */
+    population_t    p;          /* Population */
+    uint16_t        iters; /* Generations */
 
     /*  UI */
     printf("\nWelcome to this Simple Genetic Algorithm Software written by Joe Vázquez-Mellado\n");
     printf("\nHow many variables do you wish to work with?: ");
     scanf("%d", &p.num_of_vars);
 
-    p.vars = (variable_type*) calloc(p.num_of_vars, sizeof(variable_type));
+    p.vars = (variable_t*) calloc(p.num_of_vars, sizeof(variable_t));
     p.chromosome_len = define_vars(p.vars, p.num_of_vars);
 
     printf("\nEnter number of generations: ");
@@ -134,7 +135,7 @@ int main() {
 
 
 /*  Define the variables metainformation to use in chromosome */
-uint8_t define_vars(variable_type *vars, uint8_t nv) {
+uint8_t define_vars(variable_t *vars, uint8_t nv) {
     uint8_t len = 0;
     for (uint8_t i = 0; i < nv; i++) {
         printf("\nVAR %d\nlower limit: ", i);
@@ -162,8 +163,8 @@ uint8_t get_genotype_len(float xl, float xu, float pr) {
 
 
 /* Create starting population */
-void init_population(population_type *p) {
-    for (int i = 0; i < POPULATION_SIZE; i++){
+void init_population(population_t *p) {
+    for (int i = 0; i < POPULATION_S; i++){
         /* Memory allocation */
         p->chromosomes[i].genotype   = (uint8_t*) calloc(p->chromosome_len, sizeof(uint8_t));
         p->chromosomes[i].values     = (double*) calloc(p->num_of_vars, sizeof(double));
@@ -180,14 +181,14 @@ void init_population(population_type *p) {
 
 
 /*  Run the genetic algorithm through a given population a given amount of times */
-void run(population_type *p, uint16_t iters) {
+void run(population_t *p, uint16_t iters) {
     /* Initialize gnuplot handler */
     gnuplot_ctrl *h1 = gnuplot_init();
     gnuplot_ctrl *h2 = gnuplot_init();
 
     /* Memory allocation */
-    chromosome_type new_gen[POPULATION_SIZE+1];
-    for (uint16_t i = 0; i < POPULATION_SIZE+1; i++) {
+    chromosome_t new_gen[POPULATION_S+1];
+    for (uint16_t i = 0; i < POPULATION_S+1; i++) {
         new_gen[i].genotype = (uint8_t*) calloc(p->chromosome_len, sizeof(uint8_t));
         new_gen[i].values   = (double*) calloc(p->num_of_vars, sizeof(double));
     }
@@ -204,7 +205,7 @@ void run(population_type *p, uint16_t iters) {
         plot_datapoints(h1, p->vars);
 
         /* Print chromosomes */
-        for (uint8_t i = 0; i < POPULATION_SIZE; i++) {
+        for (uint8_t i = 0; i < POPULATION_S; i++) {
             print_chromosome(p->chromosomes[i], p->num_of_vars);
         }
 
@@ -212,7 +213,7 @@ void run(population_type *p, uint16_t iters) {
         procreate(p, new_gen);
 
         /* Assign new generation's properties to current population */
-        for (uint16_t j=0; j < POPULATION_SIZE; j++) {
+        for (uint16_t j=0; j < POPULATION_S; j++) {
             /* assign new_gen genotype to current_gen */
             for (uint8_t k=0; k < p->chromosome_len; k++)
                 p->chromosomes[j].genotype[k] = new_gen[j].genotype[k];
@@ -227,7 +228,7 @@ void run(population_type *p, uint16_t iters) {
 
 
 /* Evaluate population */
-void eval_population(population_type *p) {
+void eval_population(population_t *p) {
     /* Get generation vars values */
     eval_vars(p);
     /* Get generation fitness, avg fitness & sum of fitness */
@@ -241,9 +242,9 @@ void eval_population(population_type *p) {
 
 
 /* Evaluate a single variable */
-void eval_vars(population_type *p) {
+void eval_vars(population_t *p) {
     double decimal;
-    for (uint8_t i = 0; i < POPULATION_SIZE; i++)
+    for (uint8_t i = 0; i < POPULATION_S; i++)
         for (uint8_t j = 0; j < p->num_of_vars; j++) {
             decimal = eval_bits(&p->chromosomes[i].genotype[p->vars[j].pos], p->vars[j].bits_len);
 
@@ -266,13 +267,13 @@ double eval_bits(uint8_t *bits, uint8_t len){
 
 
 /*  Evaluate fitness of each chromosome and return sum of fitness   */
-void get_fitness(population_type *p) {
+void get_fitness(population_t *p) {
     double      sum             = 0,        /* Sum of fitness                   */
                 fittest         = -DBL_MAX; /* Fittest Chromosome's fitness     */
     uint16_t    i_fittest       = 0;        /* Fittest Chromosome's position    */
 
     /* Get fitness of each chromosome */
-    for (uint16_t i = 0; i < POPULATION_SIZE; i++) {
+    for (uint16_t i = 0; i < POPULATION_S; i++) {
         p->chromosomes[i].fitness = f(p->chromosomes[i].values);
         sum += p->chromosomes[i].fitness;
 
@@ -283,17 +284,17 @@ void get_fitness(population_type *p) {
     }
     p->fittest_chromosome = &p->chromosomes[i_fittest];
     p->sum_of_fitness = sum;
-    p->avg_fitness = sum/POPULATION_SIZE;
+    p->avg_fitness = sum/POPULATION_S;
 }
 
 
 
 /*  Get probability of selection and Cumulative probability distribution of each chromosome */
-void get_probabilites(population_type *p) {
+void get_probabilites(population_t *p) {
     double sum_pr = 0;
-    for (uint16_t i = 0; i < POPULATION_SIZE; i++) {
+    for (uint16_t i = 0; i < POPULATION_S; i++) {
         p->chromosomes[i].probability    = p->chromosomes[i].fitness / p->sum_of_fitness;
-        p->chromosomes[i].expected_p     = p->chromosomes[i].probability * POPULATION_SIZE;
+        p->chromosomes[i].expected_p     = p->chromosomes[i].probability * POPULATION_S;
         sum_pr                          += p->chromosomes[i].probability;
         p->chromosomes[i].cdf            = sum_pr;
     }
@@ -302,9 +303,9 @@ void get_probabilites(population_type *p) {
 
 
 /*  Create new generation */
-void procreate(population_type *p, chromosome_type new_gen[POPULATION_SIZE+1]) {
+void procreate(population_t *p, chromosome_t new_gen[POPULATION_S+1]) {
 
-    chromosome_type *parent1, *parent2, child1, child2;
+    chromosome_t *parent1, *parent2, child1, child2;
     /* Children memory allocation */
     child1.genotype = (uint8_t*)    calloc(p->chromosome_len, sizeof(uint8_t));
     child1.values   = (double*)     calloc(p->num_of_vars, sizeof(double));
@@ -316,9 +317,9 @@ void procreate(population_type *p, chromosome_type new_gen[POPULATION_SIZE+1]) {
     double      fittest         = -DBL_MAX, /* Fittest Chromosome's fitness     */
                 last_fittest    = DBL_MAX;  /* Last check's fittest Chromosome  */
 
-    for (uint16_t i = 0; i < ceil(POPULATION_SIZE * PASSTHROUGH_THRESH); i++) {
+    for (uint16_t i = 0; i < ceil(POPULATION_S * PASSTHROUGH_THRESH); i++) {
         /* Select fittest chromosome */
-        for (uint16_t k = 0; k < POPULATION_SIZE; k++) {
+        for (uint16_t k = 0; k < POPULATION_S; k++) {
             if (p->chromosomes[k].fitness > fittest && p->chromosomes[k].fitness < last_fittest) {
                 i_fittest = k;
                 fittest = p->chromosomes[k].fitness;
@@ -334,7 +335,7 @@ void procreate(population_type *p, chromosome_type new_gen[POPULATION_SIZE+1]) {
         ngi++;
     }
 
-    while (ngi < POPULATION_SIZE) {
+    while (ngi < POPULATION_S) {
         parent1 = select_parent(p);
         parent2 = select_parent(p);
         for (uint8_t j = 0; j < p->chromosome_len; j++) {
@@ -367,7 +368,7 @@ void procreate(population_type *p, chromosome_type new_gen[POPULATION_SIZE+1]) {
 
 
 /*  Select chromosomes for next generation through Roulette Wheel selection */
-chromosome_type *select_parent(population_type *p) {
+chromosome_t *select_parent(population_t *p) {
     /* Tournament Selection */
     return tournament(p);
     /* Roulette Shot Selection */
@@ -380,10 +381,10 @@ chromosome_type *select_parent(population_type *p) {
     Get two random chromosomes
     Select the fittest if t_pct is met,
     Select weaker otherwise. */
-chromosome_type *tournament(population_type *p) {
+chromosome_t *tournament(population_t *p) {
     /* Randomly select Chromosomes to fight */
-    uint16_t    champ1  = floor(rng() * POPULATION_SIZE),
-                champ2  = floor(rng() * POPULATION_SIZE),
+    uint16_t    champ1  = floor(rng() * POPULATION_S),
+                champ2  = floor(rng() * POPULATION_S),
                 strong, weak;
 
     if (p->chromosomes[champ1].fitness > p->chromosomes[champ2].fitness) {
@@ -406,7 +407,7 @@ chromosome_type *tournament(population_type *p) {
 /*  Roulette Shot Selection
     Generate a random point value,
     get nearest chromosome with cdf > the shot */
-chromosome_type *roulette(population_type *p) {
+chromosome_t *roulette(population_t *p) {
     double shot =   rng();
     uint16_t i  =   0;
 
@@ -421,7 +422,7 @@ chromosome_type *roulette(population_type *p) {
 
 /*  Crossover Operator.
     Get two new offsprings by crossing two given parents at a single point */
-void crossover(uint8_t *parent1_geno, uint8_t *parent2_geno, chromosome_type *child1, chromosome_type *child2, uint8_t chrome_len) {
+void crossover(uint8_t *parent1_geno, uint8_t *parent2_geno, chromosome_t *child1, chromosome_t *child2, uint8_t chrome_len) {
     /*  Get random cutpoint's locus cutpoint >= 1 && cutpoint < chromosome's size */
     uint8_t cutpoint = d_unif(rng(), 1, chrome_len);
 
@@ -453,7 +454,7 @@ void print_genotype(uint8_t *genotype, uint8_t chrome_len) {
 
 
 /* Print chromosome's relevant information */
-void print_chromosome(chromosome_type chrome, uint8_t nv) {
+void print_chromosome(chromosome_t chrome, uint8_t nv) {
 
     for (uint8_t i = 0; i < nv; i++) {
         printf("val%d: %lf\t", i, chrome.values[i]);
@@ -463,14 +464,8 @@ void print_chromosome(chromosome_type chrome, uint8_t nv) {
 
 
 
-/* Save average fitness of each generation to
-    data/avgfitness.csv file */
-void save_avgfitness(population_type *p, uint16_t gen) {}
-
-
-
 /* Save datapoints to data/datapoints.csv file */
-void save_datapoints(population_type *p) {
+void save_datapoints(population_t *p) {
     /* Open or create data/datapoints.csv for writing */
     FILE *fp = fopen("data/datapoints.csv", "w");
     /* Abort if connection is lost */
@@ -485,7 +480,7 @@ void save_datapoints(population_type *p) {
     fprintf(fp, "fitness");
     fprintf(fp, "\n");
 
-    for (i = 0; i < POPULATION_SIZE; i++) {
+    for (i = 0; i < POPULATION_S; i++) {
         /* save value[0], value[1], fitness to file.data */
         for (j = 0; j < p->num_of_vars; j++)
             fprintf(fp, "%lf, ", p->chromosomes[i].values[j]);
@@ -497,53 +492,53 @@ void save_datapoints(population_type *p) {
 
 
 
-/* Save fittest chromosome of each generation to
-    data/fittest.csv file */
-void save_fittest(chromosome_type fittest, uint16_t gen, uint16_t nvars) {
+/* Save per-generation statistics to data/stats.csv file
+    • fittest chromosome's fitness and values
+    • average fitness
+    • standard deviation */
+void save_statistics(population_t *p, uint16_t gen) {
     FILE *fp;
     uint8_t i;
 
-    /*  If chromosome is from first generation open file for writing and add headers
+    /*  If first generation open file for writing and add headers
         Otherwise open file for appending */
     if (gen == 0) {
-        /* Open or create data/fittest.csv for writing */
-        fp = fopen("data/fittest.csv", "w");
-        /* Abort if connection is lost */
-        if (!fp) {
-            perror("Save Fittest chromosome");
+        /* Open or create data/stats.csv for writing
+            Abort if connection is lost */
+        if (!(fp = fopen("data/stats.csv", "w")) ) {
+            perror("Save Generation [%d]'s statistics", gen);
             exit(-1);
         }
 
         fprintf(fp, "generation, ");
-        fprintf(fp, "fitness, ");
-        for (i = 0; i < nvars; i++) {
-            fprintf(fp, "var[%d], ",i);
+        fprintf(fp, "fittest fitness, ");
+        for (i = 0; i < p->num_of_vars; i++) {
+            fprintf(fp, "fittest val[%d], ",i);
         }
+
+        fprintf(fp, "avg_fitness, ");
+        fprintf(fp, "std_deviation");
         fprintf(fp, "\n");
     } else {
-        /* Open data/fittest.csv for appending */
-        fp = fopen("data/fittest.csv", "a");
+        /* Open data/stats.csv for appending */
+        fp = fopen("data/generations_stats.csv", "a");
         /* Abort if connection is lost */
         if (!fp) {
-            perror("Save Fittest chromosome");
+            perror("Save Generation [%d]'s statistics", gen);
             exit(-1);
         }
     }
 
-    fprintf(fp, "%d, ", gen);
-    fprintf(fp, "%lf, ", fittest.fitness);
-    for (i = 0; i < nvars; i++) {
-        fprintf(fp, "%lf, ", fittest.values[i]);
+    fprintf(fp, "%d, ", gen);   /* save generation */
+    fprintf(fp, "%lf, ", p->fittest_chromosome.fitness); /* save fittest chromosome's fitness */
+    for (i = 0; i < p->num_of_vars; i++) {
+        fprintf(fp, "%lf, ", p->fittest_chromosome.values[i]);  /* save fittest_chromosome's value[i] */
     }
+    fprintf(fp, "%lf, ", p->avg_fitness);
+    fprintf(fp, "%lf", p->std_deviation);
     fprintf(fp, "\n");
     fclose(fp);
 }
-
-
-
-/* Save standard deviation from each generation to
-    data/stddev.csv file */
-void save_stddev(population_type *p, uint16_t gen) {}
 
 
 
@@ -553,7 +548,7 @@ void plot_avgfitness(gnuplot_ctrl *h, uint16_t iters) {}
 
 
 /* Plot equation surface and its datapoints on top of it */
-void plot_datapoints(gnuplot_ctrl *h, variable_type *vars) {
+void plot_datapoints(gnuplot_ctrl *h, variable_t *vars) {
 
     char *xrange = (char *)malloc(30 * sizeof(char));
     char *yrange = (char *)malloc(30 * sizeof(char));
