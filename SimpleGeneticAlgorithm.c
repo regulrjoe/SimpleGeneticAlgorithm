@@ -22,6 +22,8 @@
     TODO: Producir bitácora de configuración y resultados por corrida.
     TODO: Función de selección Boltzmann
     TODO: Mutar por bit
+    TODO: Use TinyExpr to evaluate any math function
+    TODO: Integrar muta por alelo
 
     TODO: Estudiar programación lineal para entender restricciones
         "Programación lineal restricciones planteamiento de problemas"
@@ -513,7 +515,7 @@ void save_statistics(population_t *p, uint16_t gen) {
     if (gen == 0) {
         /* Open or create data/stats.csv for writing
             Abort if connection is lost */
-        if (!(fp = fopen("data/stats.csv", "w")) ) {
+        if ( !(fp = fopen("data/stats.csv", "w")) ) {
             perror("Save Generation's statistics");
             exit(-1);
         }
