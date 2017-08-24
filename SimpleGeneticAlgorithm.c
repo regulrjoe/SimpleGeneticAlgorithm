@@ -11,9 +11,7 @@
     PENDING
     TODO: Codificación Gray
     TODO: Implement Error Tolerance (EPSILON)
-    TODO: Show plot for standard deviation, avg fitness, max fitness for each GENERATIONS
     TODO: Read a lil bit David Goldberg book Genetic Algorithms in Search
-    TODO: Obtener variancia de la población
     TODO: Buscar mínimo o máximo
     TODO: Two-point crossover
     TODO: define_vars creates and returns pointer to vars instead of using pointer as argument
@@ -21,7 +19,6 @@
     TODO: Restructure Code into modal implementation.
     TODO: Producir bitácora de configuración y resultados por corrida.
     TODO: Función de selección Boltzmann
-    TODO: Mutar por bit
     TODO: Use TinyExpr to evaluate any math function
     TODO: Integrar muta por alelo
 
@@ -118,7 +115,7 @@ int main() {
     /*  UI */
     printf("\nWelcome to this Simple Genetic Algorithm Software written by Joe Vázquez-Mellado\n");
     printf("\nHow many variables do you wish to work with?: ");
-    scanf("%d", &p.num_of_vars);
+    scanf("%hhu", &p.num_of_vars);
 
     p.vars = (variable_t*) calloc(p.num_of_vars, sizeof(variable_t));
     p.chromosome_len = define_vars(p.vars, p.num_of_vars);
