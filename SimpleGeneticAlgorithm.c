@@ -9,21 +9,13 @@
 
 /*
     PENDING
-    TODO: Codificación Gray
+    TODO: Gray Codification
     TODO: Implement Error Tolerance (EPSILON)
-    TODO: Read a lil bit David Goldberg book Genetic Algorithms in Search
-    TODO: Buscar mínimo o máximo
     TODO: Two-point crossover
     TODO: define_vars creates and returns pointer to vars instead of using pointer as argument
     TODO: add chrome_len attribute to chromosome struct
     TODO: Restructure Code into modal implementation.
-    TODO: Producir bitácora de configuración y resultados por corrida.
-    TODO: Función de selección Boltzmann
     TODO: Use TinyExpr to evaluate any math function
-    TODO: Integrar muta por alelo
-
-    TODO: Estudiar programación lineal para entender restricciones
-        "Programación lineal restricciones planteamiento de problemas"
 */
 
 /* Constants */
@@ -89,7 +81,7 @@ chromosome_t    *select_parent      (population_t *p);
 chromosome_t    *tournament         (population_t *p);
 chromosome_t    *roulette           (population_t *p);
 void            crossover           (uint8_t *parent1_geno, uint8_t *parent2_geno, chromosome_t *child1, chromosome_t *child2, uint8_t chrome_len);
-void            mutate              (uint8_t *geno, uint8_t chrome_len);
+void            mutate              (uint8_t *chromosome, uint8_t chrome_len);
 void            print_chromosome    (chromosome_t chrome, uint8_t nv);
 void            print_genotype      (uint8_t *genotype, uint8_t chrome_len);
 void            save_datapoints     (population_t *p);
@@ -113,7 +105,7 @@ int main() {
     uint16_t        iters; /* Generations */
 
     /*  UI */
-    printf("\nWelcome to this Simple Genetic Algorithm Software written by Joe Vázquez-Mellado\n");
+    printf("\nWelcome to this Simple Genetic Algorithm Software written by Jorge Vázquez-Mellado\n");
     printf("\nHow many variables do you wish to work with?: ");
     scanf("%hhu", &p.num_of_vars);
 
@@ -300,10 +292,10 @@ void get_fitness(population_t *p) {
 void get_probabilites(population_t *p) {
     double sum_pr = 0;
     for (uint16_t i = 0; i < POPULATION_S; i++) {
-        p->chromosomes[i].probability    = p->chromosomes[i].fitness / p->sum_of_fitness;
-        p->chromosomes[i].expected_p     = p->chromosomes[i].probability * POPULATION_S;
+        p->chromosomes[i].probability   = p->chromosomes[i].fitness / p->sum_of_fitness;
+        p->chromosomes[i].expected_p    = p->chromosomes[i].probability * POPULATION_S;
         sum_pr                          += p->chromosomes[i].probability;
-        p->chromosomes[i].cdf            = sum_pr;
+        p->chromosomes[i].cdf           = sum_pr;
     }
 }
 
@@ -352,11 +344,10 @@ void procreate(population_t *p, chromosome_t new_gen[POPULATION_S+1]) {
         /* Do crossover if CROSSOVER_THRESH is met */
         if (rng() <= CROSSOVER_THRESH)
             crossover(parent1->genotype, parent2->genotype, &child1, &child2, p->chromosome_len);
-        /* Do mutation if MUTATION_THRESH is met */
-        if (rng() <= MUTATION_THRESH)
-            mutate(child1.genotype, p->chromosome_len);
-        if (rng() <= MUTATION_THRESH )
-            mutate(child2.genotype, p->chromosome_len);
+
+        /* Mutate children */
+        mutate(child1.genotype, p->chromosome_len);
+        mutate(child2.genotype, p->chromosome_len);
 
         /* Assign children to new generation */
         for (uint8_t j = 0; j < p->chromosome_len; j++) {
@@ -443,9 +434,15 @@ void crossover(uint8_t *parent1_geno, uint8_t *parent2_geno, chromosome_t *child
 
 /* Mutation Operator.
     Create a random gene of a given chromosome */
-void mutate(uint8_t *geno, uint8_t chrome_len) {
-    uint8_t locus   = d_unif(rng(), 0, chrome_len);
-    geno[locus] = (geno[locus] == 0) ? 1 : 0;
+void mutate(uint8_t *chromosome, uint8_t chrome_len) {
+    double shot;
+    double thresh   = 1.0/chrome_len;
+
+    for (uint8_t i = 0; i < chrome_len; i++) {
+        shot = rng();
+        if (shot < thresh)
+            chromosome[i] = (chromosome[i] == 0) ? 1 : 0;
+    }
 }
 
 
@@ -578,7 +575,11 @@ void plot_datapoints(gnuplot_ctrl *h, variable_t *vars) {
     gnuplot_cmd(h, "set ylabel 'var 1'");
     gnuplot_cmd(h, "set zlabel 'fitness'");
     gnuplot_cmd(h, "set ticslevel 0");
-    gnuplot_cmd(h, "set hidden3d");
+    gnuplot_cmd(h, "set view 15,30");
+    //gnuplot_cmd(h, "set hidden3d");
+    gnuplot_cmd(h, "set pm3d at b");
+    //gnuplot_cmd(h, "set contour base");
+    //gnuplot_cmd(h, "set no surface");
     gnuplot_cmd(h, "set isosample 70");
     /* Plot fitness function surface, and datapoints from data/datapoints.cvs */
     gnuplot_cmd(h, "splot (1+cos(12*sqrt(x**2+y**2)))/(0.5*(x**2+y**2)+2), 'data/datapoints.csv' every::1" );
@@ -660,7 +661,7 @@ double cud(double x, double a, double b) {
 
 
 
-/*  Cryptographically Secure Pseudornadom Number Generator
+/*  Cryptographically Secure Pseudorandom Number Generator
     Read bytes from /dev/random device file. Each byte from the file is
     a cryptographically random value from 0-255. This function concatenates
     those bytes to generate a random number of an arbitrary size, only to then
